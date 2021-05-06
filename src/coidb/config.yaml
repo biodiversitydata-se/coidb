@@ -12,5 +12,4 @@ database:
     gene:
         - "COI-5P"
     # phyla of interest (omit this in order to include all phyla)
-    phyla:
-        - "Arthropoda"
+    phyla: []
