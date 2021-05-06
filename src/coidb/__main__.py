@@ -15,7 +15,7 @@ def run(args):
             snakefile_path, targets=args.targets, dryrun=args.dryrun,
             cores=args.cores, configfiles=args.config_file,
             cluster_config=args.cluster_config, workdir=args.workdir,
-            printshellcmds=args.printshellcmds,
+            printshellcmds=args.printshellcmds, unlock=args.unlock,
         )
     if not success:
         raise SnakemakeError()
