@@ -28,6 +28,14 @@ git clone https://github.com/johnne/coidb.git
 python setup.py install
 ```
 
+### Dependencies
+
+This tool depends on software defined in the `environment.yml` file. 
+
+If you install the package with conda this also installs all requirements at the
+same time. If you instead install a release or clone the repo, please make sure 
+that the required software is available in your `PATH`.
+
 ## Quick start
 To generate a file `bold_clustered.fasta` with COI-5P sequences, run:
 
