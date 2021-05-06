@@ -9,13 +9,19 @@ and formats sequences of interest for use with downstream metabarcoding analyses
 
 ## Installation
 
-1. Install with conda
+1. Install with conda:
 
 ```bash
 conda install -c bioconda coidb
 ```
 
-2. Clone git repository and build
+2. Download a release from the '**Releases**' section, unpack it and install:
+
+```bash
+python setup.py install
+```
+
+3. Clone git repository and build
 
 ```bash
 git clone https://github.com/johnne/coidb.git
