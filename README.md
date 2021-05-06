@@ -33,6 +33,20 @@ This will download, filter and cluster sequences from [GBIF Hosted Datasets](htt
 
 See below for configuration and more options.
 
+## Output
+
+Sequences in the resulting `bold_clustered.fasta` fasta file contain the original 
+identifier as their primary id, and a string showing their taxonomic lineage in 
+the fasta header:
+
+```bash
+>centroid=GBA28357-15 Arthropoda;Insecta;Psocodea;Philotarsidae;Aaroniella;Aaroniella sp.;seqs=1
+```
+
+In this example `centroid=` indicates that sequences from this species were 
+clustered with `vsearch` and that the representative sequence for the resulting 
+cluster is `GBA28357-15`.
+
 ## Configuration
 There are a few configurable parameters that modifies how sequences are filtered
 and clustered. You can modify these parameters using a config file in `yaml` 
