@@ -17,6 +17,7 @@ def run(args):
             cluster_config=args.cluster_config, workdir=args.workdir,
             printshellcmds=args.printshellcmds, unlock=args.unlock,
         )
+        return success
     if not success:
         raise SnakemakeError()
 
