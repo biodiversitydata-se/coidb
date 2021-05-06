@@ -1,0 +1,74 @@
+from snakemake.utils import validate
+
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3:4.9.2"
+
+# Validate config
+validate(config, "config.schema.yaml")
+
+localrules: coidb, download, filter
+
+rule coidb:
+    input: "bold_clustered.fasta"
+
+rule download:
+    """
+    Download zipfile with database sequences + info
+    """
+    output:
+        "bold_info.tsv",
+        "bold_seqs.txt"
+    log:
+        "logs/download.log"
+    params:
+        url = config["database"]["url"]
+    shell:
+        """
+        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
+        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
+        mv $TMPDIR/sequence.txt {output[1]}
+        mv $TMPDIR/occurrences.txt {output[0]}
+        rm $TMPDIR/bold.zip
+        """
+
+rule filter:
+    """
+    Extract record ids based on taxonomy
+    """
+    input:
+        "bold_info.tsv",
+        "bold_seqs.txt"
+    output:
+        info = "bold_info_filtered.tsv",
+        fasta = "bold_filtered.fasta",
+    params:
+        genes = config["database"]["gene"],
+        phyla = config["database"]["phyla"],
+        tmpf = "$TMPDIR/bold_filtered.fasta"
+    script:
+        "scripts/common.py"
+
+rule cluster:
+    """
+    Cluster the filtered fasta file using vsearch
+    """
+    input:
+        fasta = "bold_filtered.fasta"
+    output:
+        fasta = "bold_clustered.fasta"
+    log:
+        "logs/bold/cluster.log"
+    conda:
+        "envs/cluster.yml"
+    threads: 10
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 10
+    params:
+        pid = config["database"]["pid"]
+    shell:
+        """
+        cluster_bold.py --threads {threads} --pid {params.pid} \
+            {input.fasta} {output.fasta} > {log} 2>&1 
+        """
+

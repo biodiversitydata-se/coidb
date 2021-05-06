@@ -1,0 +1,46 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+description: schema for config parameters
+
+type: object
+
+properties:
+  primers:
+    type: object
+    forward:
+      type: array
+      description: Forward primer sequence(s)
+      items:
+        type: string
+    reverse:
+      type: array
+      description: Reverse primer sequence(s)
+      items:
+        type: string
+
+  database:
+    type: object
+    default:
+      pid: 1.0
+      url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+      gene:
+        - "COI-5P"
+      phyla: []
+    properties:
+      pid:
+        type: number
+        description: Id threshold for clustering database with vsearch
+        max: 1.0
+        min: 0.0
+      url:
+        type: string
+        description: URL to zipfile with database sequences + info
+      gene:
+        type: array
+        description: Genes of interest to extract from database
+        items:
+          type: string
+      phyla:
+        type: array
+        description: Phyla of interest to extract from database
+        items:
+          type: string
