@@ -1,0 +1,5 @@
+biopython
+vsearch
+tqdm
+pandas
+setuptools
