@@ -3,4 +3,3 @@ vsearch
 tqdm
 pandas
 setuptools
-yaml
