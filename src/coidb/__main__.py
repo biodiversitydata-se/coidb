@@ -11,11 +11,15 @@ from snakemake.utils import available_cpu_count
 
 def run(args):
     with resource_path('coidb', "Snakefile") as snakefile_path:
+        forcerun = []
+        if args.force:
+            forcerun = args.targets
         success = snakemake(
             snakefile_path, targets=args.targets, dryrun=args.dryrun,
             cores=args.cores, configfiles=args.config_file,
             cluster_config=args.cluster_config, workdir=args.workdir,
             printshellcmds=args.printshellcmds, unlock=args.unlock,
+            forcerun=forcerun,
         )
         return success
     if not success:
