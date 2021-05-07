@@ -9,6 +9,11 @@ import sys
 from snakemake import snakemake
 from snakemake.utils import available_cpu_count
 
+
+class SnakemakeError(Exception):
+    pass
+
+
 def run(args):
     with resource_path('coidb', "Snakefile") as snakefile_path:
         forcerun = []
