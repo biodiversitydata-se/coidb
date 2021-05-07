@@ -4,3 +4,4 @@ tqdm
 pandas
 setuptools
 importlib_resources
+pyyaml
