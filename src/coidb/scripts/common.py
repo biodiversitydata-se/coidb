@@ -96,4 +96,4 @@ def main(sm):
 
 
 if __name__ == '__main__':
-    main(snakemake)
+    main(snakemake) # noqa: F821
