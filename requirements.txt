@@ -3,3 +3,4 @@ vsearch
 tqdm
 pandas
 setuptools
+importlib_resources
