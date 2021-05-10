@@ -9,3 +9,4 @@ dependencies:
   - vsearch
   - tqdm
   - pandas
+  - snakemake

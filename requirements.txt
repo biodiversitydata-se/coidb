@@ -5,3 +5,4 @@ pandas
 setuptools
 importlib_resources
 pyyaml
+snakemake
