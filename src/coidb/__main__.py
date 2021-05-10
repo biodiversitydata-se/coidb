@@ -24,7 +24,7 @@ def run(args):
             cores=args.cores, configfiles=args.config_file,
             cluster_config=args.cluster_config, workdir=args.workdir,
             printshellcmds=args.printshellcmds, unlock=args.unlock,
-            forcerun=forcerun,
+            forcerun=forcerun, show_failed_logs=args.show_failed_logs,
         )
         return success
     if not success:
