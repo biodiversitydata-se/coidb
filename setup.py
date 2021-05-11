@@ -5,12 +5,14 @@ with open("README.md") as f:
 
 setup(
     name="coidb",
+    version="0.1",
     author="John Sundh",
     url="https://github.com/NBISweden/coidb/",
     description="Workflow for downloading and formatting COI database",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="MIT",
+
     python_requires=">=3.6",
     install_requires=[
         "snakemake",
