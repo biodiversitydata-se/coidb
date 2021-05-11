@@ -1,16 +1,21 @@
 name: Python Package using Conda
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+      branches: [ main ]
 
 env:
   TMPDIR: /tmp
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 5
-
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        python-version: [ 3.7, 3.8, 3.9 ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
