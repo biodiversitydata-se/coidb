@@ -10,3 +10,4 @@ dependencies:
   - tqdm
   - pandas
   - snakemake
+  - importlib_resources
