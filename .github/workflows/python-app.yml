@@ -41,6 +41,3 @@ jobs:
     - name: Install coidb
       run: |
         pip install -e .
-    - name: Test with pytest
-      run: |
-        pytest
