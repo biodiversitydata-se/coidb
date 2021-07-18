@@ -40,6 +40,42 @@ def write_seqs(seq_df, outfile, tmpfile):
     return seq_df.drop("seq", axis=1)
 
 
+def extract_species_name(value):
+    """
+    This function extracts the most common species name from a text
+    string such as:
+
+    Genus names applied to this BIN: Cerconota (59) Species names \
+    applied to this BIN: Cerconota Janzen217 (14), Cerconota Janzen233 \
+    (4), Cerconota Janzen82 (41)
+
+    or
+
+    Species names applied to this BIN: Melanchra adjuncta (98)
+
+    :param value: string to extract from
+    :return: most common species name
+    """
+    items = value.split("Species names applied to this BIN: ")[1]
+    sp_names = items.split(", ")
+    max_count = 0
+    sp_name = ""
+    for n in sp_names:
+        # Extract species names, making sure to cath cases where, e.g.
+        # n = 'Squalus megalops (vbs) (2)'
+        # as well as
+        # n = 'Squalus megalops (34)'
+        species = "(".join(n.split("(")[0:-1]).rstrip()
+        count = n.split("(")[-1]
+        try:
+            count = int(count.rstrip(")"))
+        except ValueError:
+            continue
+        if count >= max_count:
+            sp_name = species
+    return sp_name
+
+
 def filter(sm):
     genes = sm.params.genes
     phyla = sm.params.phyla
@@ -66,6 +102,26 @@ def filter(sm):
         sys.stderr.write("Filtering sequences to gene(s) of interest\n")
         seqs = seqs.loc[seqs.gene.isin(genes)]
         sys.stderr.write(f"{seqs.shape[0]} sequences remaining\n")
+    # Read taxinfo
+    sys.stderr.write(f"Reading taxonomic info for BINS from {sm.input[2]}\n")
+    taxa = pd.read_csv(sm.input[2], header=None, sep="\t", usecols=[5,8],
+                       names=["BIN", "tax"],
+                       dtype={"BIN": str, "tax": str})
+    # Extract records with species names
+    bin_taxa = taxa.loc[(taxa.BIN.str.contains("BOLD")) & (
+        taxa.tax.str.contains("Species names applied to this BIN"))]
+    sys.stderr.write(f"Found {bin_taxa.shape[0]} BINS with species names\n")
+    bin_taxa.set_index("BIN", inplace=True)
+    bin_taxa = bin_taxa.to_dict()["tax"]
+    bin_species = {}
+    for key in tqdm(bin_taxa.keys(),
+                    desc="Extracting species names for BINs",
+                    unit=" bins", ):
+        value = bin_taxa[key]
+        sp_name = extract_species_name(value)
+        bin_species[key] = sp_name
+    # Update the BOLD BIN ids in the species column to species names
+    df.species = df.species.map(bin_species).fillna(df.species)
     # Merge in order to get the intersection
     sys.stderr.write("Merging info and sequences\n")
     seq_df = pd.merge(df, seqs, left_on="record_id", right_index=True,
