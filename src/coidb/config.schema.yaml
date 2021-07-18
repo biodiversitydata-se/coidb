@@ -22,6 +22,7 @@ properties:
     default:
       pid: 1.0
       url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+      tax_url: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
       gene:
         - "COI-5P"
       phyla: []
@@ -34,6 +35,9 @@ properties:
       url:
         type: string
         description: URL to zipfile with database sequences + info
+      tax_url:
+        type: string
+        description: URL to zipfile with taxonomic information for BINS
       gene:
         type: array
         description: Genes of interest to extract from database
