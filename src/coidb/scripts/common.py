@@ -115,12 +115,12 @@ def filter(sm):
     bin_taxa.set_index("BIN", inplace=True)
     bin_taxa = bin_taxa.to_dict()["tax"]
     bin_species = {}
-for key in tqdm(bin_taxa.keys(),
-                desc="Extracting species names for BINs",
-                unit=" bins", ):
-    value = bin_taxa[key]
-    sp_name = extract_species_name(value)
-    bin_species[key] = sp_name
+    for key in tqdm(bin_taxa.keys(),
+                    desc="Extracting species names for BINs",
+                    unit=" bins", ):
+        value = bin_taxa[key]
+        sp_name = extract_species_name(value)
+        bin_species[key] = sp_name
     # Update the BOLD BIN ids in the species column to species names
     df.species = df.species.map(bin_species).fillna(df.species)
     # Merge in order to get the intersection
