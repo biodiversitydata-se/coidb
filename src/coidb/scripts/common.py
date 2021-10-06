@@ -57,7 +57,7 @@ def extract_species_name(value):
     :return: most common species name
     """
     items = value.split("Species names applied to this BIN: ")[1]
-    sp_names = items.split(", ")
+    sp_names = items.split("), ")
     max_count = 0
     sp_name = ""
     for n in sp_names:
@@ -73,6 +73,7 @@ def extract_species_name(value):
             continue
         if count >= max_count:
             sp_name = species
+            max_count = count
     return sp_name
 
 
