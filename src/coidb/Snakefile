@@ -10,7 +10,7 @@ validate(config, "config.schema.yaml")
 localrules: coidb, download, filter, format
 
 rule coidb:
-    input: expand("bold_clustered.{w}.fasta", w=["assignTaxa", "addSpecies"])
+    input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
 
 rule download:
     """
@@ -86,7 +86,7 @@ rule format:
         fasta = "bold_clustered.fasta",
         info = "bold_info_filtered.tsv"
     output:
-        assignTaxaFasta = "bold_clustered.assignTaxa.fasta",
+        assignTaxaFasta = "bold_clustered.assignTaxonomy.fasta",
         addSpeciesFasta = "bold_clustered.addSpecies.fasta"
     script:
         "scripts/common.py"
