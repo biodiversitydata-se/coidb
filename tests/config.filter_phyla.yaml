@@ -3,6 +3,7 @@ database:
     pid: 1.0
     # url to download info and sequence files from
     url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+    tax_url: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
     # gene of interest (will be used to filter sequences)
     gene:
       - COI-5P

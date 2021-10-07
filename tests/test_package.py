@@ -9,7 +9,7 @@ from Bio import SeqIO
 def populate_args():
     parser = ArgumentParser()
     args = parser.parse_args()
-    args.targets = ['bold_filtered.fasta', 'bold_info_filtered.tsv']
+    args.targets = ['bold_clustered.assignTaxonomy.fasta', 'bold_clustered.addSpecies.fasta']
     args.show_failed_logs = True
     args.workdir = "tests/data"
     args.dryrun = False
