@@ -186,7 +186,7 @@ def format_fasta(sm):
                     names.append(n)
                 else:
                     break
-            id_tax = ";".join(names)
+            id_tax = ";".join(names)+";"
             fh1.write(f">{id_tax}\n{record.seq}\n")
             species = rec_info["species"]
             if species == species:
