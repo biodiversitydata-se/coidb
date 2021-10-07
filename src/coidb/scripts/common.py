@@ -147,8 +147,56 @@ def filter(sm):
     info_df.to_csv(sm.output.info, header=True, index=True, sep="\t")
 
 
+def format_fasta(sm):
+    """
+    Format a fasta file into two output files, one for use with the
+    assignTaxonomy function and one with addSpecies in DADA2.
+
+    The file for assignTaxonomy should have:
+    >Level1;Level2;Level3;Level4;Level5;Level6;
+    ACCTAGAAAGTCGTAGATCGAAGTTGAAGCATCGCCCGATGATCGTCTGAAGCTGTAGCATGAGTC
+    >Level1;Level2;Level3;Level4;Level5;
+    CGCTAGAAAGTCGTAGAAGGCTCGGAGGTTTGAAGCATCGCCCGATGGGATCTCGTTGCTGTAGCA
+
+    while assignSpecies should have:
+    >ID Genus species
+    ACCTAGAAAGTCGTAGATCGAAGTTGAAGCATCGCCCGATGATCGTCTGAAGCTGTAGCATGAGTC
+    >ID Genus species
+    CGCTAGAAAGTCGTAGAAGGCTCGGAGGTTTGAAGCATCGCCCGATGGGATCTCGTTGCTGTAGCA
+
+    for example:
+    >Arthropoda;Insecta;Lepidoptera;Depressariidae;Acraephnes;
+    and
+    >AANIC216-11 Acraephnes nivea
+    :param sm: snakemake object
+    :return:
+    """
+    ranks = ["phylum","class","order","family","genus"]
+    from Bio import SeqIO
+    info = pd.read_csv(sm.input.info, sep="\t", index_col=0, header=0)
+    with open(sm.output.assignTaxaFasta, 'w') as fh1, open(sm.output.addSpeciesFasta, 'w') as fh2:
+        for record in SeqIO.parse(sm.input.fasta, "fasta"):
+            id = record.id
+            rec_info = info.loc[id.lstrip("centroid=")]
+            names = ["Eukaryota"]
+            # Iterate ranks and add names as long as they are not NaN
+            for r in ranks:
+                n = rec_info[r]
+                if n == n:
+                    names.append(n)
+                else:
+                    break
+            id_tax = ";".join(names)+";"
+            fh1.write(f">{id_tax}\n{record.seq}\n")
+            species = rec_info["species"]
+            if species == species:
+                id_spec = f"{id} {species}"
+                fh2.write(f">{id_spec}\n{record.seq}\n")
+
+
 def main(sm):
-    toolbox = {'filter': filter}
+    toolbox = {'filter': filter,
+               'format': format_fasta}
     toolbox[sm.rule](sm)
 
 

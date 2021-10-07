@@ -7,10 +7,10 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Validate config
 validate(config, "config.schema.yaml")
 
-localrules: coidb, download, filter
+localrules: coidb, download, filter, format
 
 rule coidb:
-    input: "bold_clustered.fasta"
+    input: expand("bold_clustered.{w}.fasta", w=["assignTaxa", "addSpecies"])
 
 rule download:
     """
@@ -78,3 +78,15 @@ rule cluster:
             {input.fasta} {output.fasta} > {log} 2>&1 
         """
 
+rule format:
+    """
+    Formats the clustered fasta file into DADA2-ready files
+    """
+    input:
+        fasta = "bold_clustered.fasta",
+        info = "bold_info_filtered.tsv"
+    output:
+        assignTaxaFasta = "bold_clustered.assignTaxa.fasta",
+        addSpeciesFasta = "bold_clustered.addSpecies.fasta"
+    script:
+        "scripts/common.py"
