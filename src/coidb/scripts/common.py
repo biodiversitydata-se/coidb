@@ -86,8 +86,11 @@ def filter(sm):
                      names=["record_id", "bold_id", "phylum", "class", "order",
                             "family", "genus", "species"],
                      dtype={'bold_id': str})
-    df.fillna("", inplace=True)
     sys.stderr.write(f"{df.shape[0]} records read\n")
+    # Filter to only records with BOLD BIN ID
+    df = df.loc[df.bold_id==df.bold_id]
+    sys.stderr.write(f"{df.shape[0]} records with BOLD BIN ID remaining\n")
+    df.fillna("", inplace=True)
     if len(phyla) > 0:
         # Filter dataframe to phyla
         sys.stderr.write("Filtering info file to phyla of interest\n")
