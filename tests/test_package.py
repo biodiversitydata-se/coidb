@@ -4,6 +4,7 @@ import yaml
 import pandas as pd
 from coidb.__main__ import run as coidb_run
 from Bio import SeqIO
+import os
 
 
 def populate_args():
@@ -43,6 +44,8 @@ def test_url():
 def test_filter():
     args = populate_args()
     assert coidb_run(args)
+    os.remove(f"{args.workdir}/bold_info_filtered.tsv")
+    os.remove(f"{args.workdir}/bold_filtered.fasta")
 
 
 def test_filter_genes():
@@ -54,6 +57,8 @@ def test_filter_genes():
                      header=0)
     assert sorted(list(df.gene.unique())) == sorted(
         list(config["database"]["gene"]))
+    os.remove(f"{args.workdir}/bold_info_filtered.tsv")
+    os.remove(f"{args.workdir}/bold_filtered.fasta")
 
 
 def test_filter_phyla():
