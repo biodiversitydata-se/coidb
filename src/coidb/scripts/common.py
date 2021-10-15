@@ -17,12 +17,12 @@ def handle_nonuniq(recs):
 
 
 def write_seqs(seq_df, outfile, tmpfile):
-    ranks = ["phylum", "class", "order", "family", "genus", "species"]
+    ranks = ["phylum", "class", "order", "family", "genus", "species", "bold_id"]
     old_index = []
     new_index = []
-    # Sort sequences by species
-    sys.stderr.write("Sorting sequences by species\n")
-    seq_df = seq_df.sort_values("species")
+    # Sort sequences by BOLD IDs
+    sys.stderr.write("Sorting sequences by BOLD IDs\n")
+    seq_df = seq_df.sort_values("bold_id")
     tmpfile = os.path.expandvars(tmpfile)
     outfile = os.path.abspath(outfile)
     with open(tmpfile, 'w') as fhout:
@@ -192,7 +192,12 @@ def format_fasta(sm):
             id_tax = ";".join(names)+";"
             fh1.write(f">{id_tax}\n{record.seq}\n")
             species = rec_info["species"]
+            bold_id = rec_info["bold_id"]
             if species == species:
+                # If species name includes more info than bold_id, add
+                # species name as suffix
+                if species != bold_id:
+                    species = f"{bold_id} ({species})"
                 id_spec = f"{id} {species}"
                 fh2.write(f">{id_spec}\n{record.seq}\n")
 
