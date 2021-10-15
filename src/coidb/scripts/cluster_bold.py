@@ -39,7 +39,7 @@ def cluster_records(records, pid, threads):
     return clustered_records
 
 
-def get_species_clusters(f, pid, threads):
+def get_bold_clusters(f, pid, threads):
     """
     Iterates a fasta file sorted by species and clusters sequence for each
     species
@@ -48,39 +48,39 @@ def get_species_clusters(f, pid, threads):
     :param pid: percent identity to cluster by
     :return: cluster dictionary (species as keys, records as values)
     """
-    sp_groups = {}
+    bold_groups = {}
     clusters = {}
     seqs = 0
     sp = ""
     sys.stderr.write(f"Reading {f} and clustering with vsearch...\n")
     for i, record in enumerate(parse(f, "fasta")):
-        species = (record.description).split(";")[-1]
+        bold_id = (record.description).split(";")[-1]
         if i == 0:
-            sp = species
-            sp_groups[species] = [record]
+            current_id = bold_id
+            bold_groups[bold_id] = [record]
             continue
         # If the next record is from the same species, add it to the list
-        if species == sp:
-            sp_groups[species].append(record)
+        if bold_id == current_id:
+            bold_groups[bold_id].append(record)
         # If not the same, attempt to cluster the stored sequences
         else:
-            clusters[sp] = cluster_records(sp_groups[sp], pid, threads)
-            seqs += len(clusters[sp])
-            sp = species
-            sp_groups[species] = [record]
+            clusters[current_id] = cluster_records(bold_groups[current_id], pid, threads)
+            seqs += len(clusters[current_id])
+            current_id = bold_id
+            bold_groups[bold_id] = [record]
     # Cluster the final sequences
-    clusters[sp] = cluster_records(sp_groups[sp], pid, threads)
-    seqs += len(clusters[sp])
+    clusters[current_id] = cluster_records(bold_groups[current_id], pid, threads)
+    seqs += len(clusters[current_id])
     sys.stderr.write(f"Records read: {i+1}\n"
-                     f"Species clustered: {len(clusters)}\n"
+                     f"BOLD IDs clustered: {len(clusters)}\n"
                      f"Sequence clusters: {seqs}\n")
     return clusters
 
 
 def main(args):
-    seq_clusters = get_species_clusters(args.fasta, args.pid, args.threads)
+    seq_clusters = get_bold_clusters(args.fasta, args.pid, args.threads)
     with open(args.outfile, 'w') as fhout:
-        for species, records in seq_clusters.items():
+        for bold_id, records in seq_clusters.items():
             write_fasta(records, fhout, "fasta")
 
 
