@@ -43,6 +43,7 @@ def test_url():
 
 def test_filter():
     args = populate_args()
+    args.targets = ['bold_info_filtered.tsv']
     assert coidb_run(args)
     os.remove(f"{args.workdir}/bold_info_filtered.tsv")
     os.remove(f"{args.workdir}/bold_filtered.fasta")
@@ -50,6 +51,7 @@ def test_filter():
 
 def test_filter_genes():
     args = populate_args()
+    args.targets = ['bold_info_filtered.tsv']
     args.config_file = ["tests/config.filter_genes.yaml"]
     config = load_config(args.config_file[0])
     assert coidb_run(args)

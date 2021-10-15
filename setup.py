@@ -5,7 +5,7 @@ with open("README.md") as f:
 
 setup(
     name="coidb",
-    version="0.2.3",
+    version="0.2.4",
     author="John Sundh",
     url="https://github.com/NBISweden/coidb/",
     description="Workflow for downloading and formatting COI database",
