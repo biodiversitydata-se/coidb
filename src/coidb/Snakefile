@@ -17,24 +17,38 @@ rule download:
     Download zipfile with database sequences + info
     """
     output:
+        "bold.zip",
+        "bold_bins.zip"
+    log:
+        "logs/download.log"
+    params:
+        url=config["database"]["url"],
+        tax_url=config["database"]["tax_url"]
+    shell:
+        """
+        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
+        curl -L -o $TMPDIR/bold_bins.zip {params.tax_url} >> {log} 2>&1
+        mv $TMPDIR/bold.zip {output[0]}
+        mv $TMPDIR/bold_bins.zip {output[1]}
+        """
+
+rule extract:
+    input:
+        "bold.zip",
+        "bold_bins.zip"
+    output:
         "bold_info.tsv",
         "bold_seqs.txt",
         "bold_taxa.txt"
     log:
-        "logs/download.log"
-    params:
-        url = config["database"]["url"],
-        tax_url = config["database"]["tax_url"]
+        "logs/extract.log"
     shell:
         """
-        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
-        curl -L -o $TMPDIR/bold_bins.zip {params.tax_url} >> {log} 2>&1
-        unzip -o -d $TMPDIR/ $TMPDIR/bold_bins.zip taxon.txt >> {log} 2>&1
+        unzip -o -d $TMPDIR/ {input[0]} occurrences.txt dna.txt >> {log} 2>&1
+        unzip -o -d $TMPDIR/ {input[1]} taxon.txt >> {log} 2>&1
         mv $TMPDIR/occurrences.txt {output[0]}
-        mv $TMPDIR/sequence.txt {output[1]}
+        mv $TMPDIR/dna.txt {output[1]}
         mv $TMPDIR/taxon.txt {output[2]}  
-        rm $TMPDIR/bold.zip $TMPDIR/bold_bins.zip
         """
 
 rule filter:
