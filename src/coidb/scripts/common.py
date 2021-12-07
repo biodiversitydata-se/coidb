@@ -20,6 +20,9 @@ def write_seqs(seq_df, outfile, tmpfile):
     ranks = ["phylum", "class", "order", "family", "genus", "species", "bold_id"]
     old_index = []
     new_index = []
+    # Filter out sequences with non-DNA characters
+    seq_df, dropped_ids = filter_non_standard(seq_df)
+    sys.stderr.write(f"{dropped_ids} sequences dropped\n")
     # Sort sequences by BOLD IDs
     sys.stderr.write("Sorting sequences by BOLD IDs\n")
     seq_df = seq_df.sort_values("bold_id")
@@ -30,9 +33,6 @@ def write_seqs(seq_df, outfile, tmpfile):
                               desc=f"Writing sequences to temporary directory",
                               unit=" seqs"):
             seq = seq_df.loc[record_id, "seq"]
-            seq = seq.replace("-", "").strip("N")
-            if "N" in seq:
-                continue
             desc = ";".join([seq_df.loc[record_id, x] for x in ranks])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
     sys.stderr.write(f"Moving {tmpfile} to {outfile}\n")
@@ -77,6 +77,26 @@ def extract_species_name(value):
     return sp_name
 
 
+def filter_non_standard(df):
+    """
+    Removes sequences with non-standard nucleotides
+
+    :param df: Dataframe with fasta sequences
+    :return: Dataframe with sequences with non-standard characters removed
+    """
+    drop_ids = []
+    for record_id in tqdm(df.index, unit=" records",
+                          desc="removing non-standard nucleotide seqs"):
+        seq = df.loc[record_id, "seq"]
+        seq = seq.replace("-", "").strip("N")
+        letters = set([x for x in seq])
+        for l in letters:
+            if l not in ["A", "C", "G", "T"]:
+                drop_ids.append(record_id)
+                break
+    return df.drop(drop_ids), len(drop_ids)
+
+
 def filter(sm):
     genes = sm.params.genes
     phyla = sm.params.phyla
@@ -99,7 +119,7 @@ def filter(sm):
     # Read fasta
     sys.stderr.write(f"Reading fasta file {sm.input[1]}\n")
     seqs = pd.read_csv(sm.input[1], header=None, sep="\t", index_col=0,
-                       names=["record_id", "gene", "seq"])
+                       names=["record_id", "gene", "seq"], usecols=[0,1,2])
     sys.stderr.write(f"{seqs.shape[0]} sequences read\n")
     if len(genes) > 0:
         # Filter fasta to gene(s)
