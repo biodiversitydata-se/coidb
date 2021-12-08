@@ -91,7 +91,7 @@ def filter_non_standard(df):
         seq = seq.replace("-", "").strip("N")
         letters = set([x for x in seq])
         for l in letters:
-            if l not in ["A", "C", "G", "T"]:
+            if l.upper() not in ["A", "C", "G", "T"]:
                 drop_ids.append(record_id)
                 break
     return df.drop(drop_ids), len(drop_ids)
