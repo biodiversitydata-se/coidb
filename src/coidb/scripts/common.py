@@ -94,6 +94,7 @@ def filter_non_standard(df):
             if l.upper() not in ["A", "C", "G", "T"]:
                 drop_ids.append(record_id)
                 break
+        df.loc[record_id, "seq"] = seq
     return df.drop(drop_ids), len(drop_ids)
 
 
