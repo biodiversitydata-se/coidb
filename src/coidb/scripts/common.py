@@ -171,6 +171,22 @@ def filter(sm):
     info_df.to_csv(sm.output.info, header=True, index=True, sep="\t")
 
 
+def clean_fasta(sm):
+    """
+    Reformats fasta headers to strip vsearch specific strings
+
+    :param sm: snakemake object
+    :return:
+    """
+    from Bio import SeqIO
+    import re
+    with open(sm.input.fasta, 'r') as fhin, open(sm.output.fasta, 'w') as fhout:
+        for record in SeqIO.parse(fhin, "fasta"):
+            desc = (record.description).lstrip("centroid=")
+            desc = re.split(";seqs=\d+", desc)[0]
+            fhout.write(f">{desc}\n{record.seq}\n")
+
+
 def format_fasta(sm):
     """
     Format a fasta file into two output files, one for use with the
@@ -225,7 +241,8 @@ def format_fasta(sm):
 
 def main(sm):
     toolbox = {'filter': filter,
-               'format': format_fasta}
+               'format': format_fasta,
+               'clean': clean_fasta}
     toolbox[sm.rule](sm)
 
 
