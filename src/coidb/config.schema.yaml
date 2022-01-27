@@ -30,7 +30,7 @@ properties:
       pid:
         type: number
         description: Id threshold for clustering database with vsearch
-        max: 1.0
+        max: 0.99
         min: 0.0
       bold.zip:
         type: string

@@ -5,7 +5,7 @@ primers:
         - "CDGGRTGNCCRAARAAYCA"
 database:
     # Percent identity to cluster seqs in the database by
-    pid: 1.0
+    pid: 0.99
     # url to download info and sequence files from
     bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
     # url to download zip file with 'taxon.txt' file
