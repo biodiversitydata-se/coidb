@@ -9,6 +9,14 @@ validate(config, "config.schema.yaml")
 
 localrules: coidb, download, filter, clean, format
 
+wildcard_constraints:
+    textfile = "occurrences.txt|dna.txt|taxon.txt",
+    zipfile = "bold.zip|bold_bins.zip"
+
+textfile_dict = {'taxon.txt': 'bold_bins.zip',
+                 'occurrences.txt': 'bold.zip',
+                 'dna.txt': 'bold.zip'}
+
 rule coidb:
     input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
 
@@ -17,38 +25,29 @@ rule download:
     Download zipfile with database sequences + info
     """
     output:
-        "bold.zip",
-        "bold_bins.zip"
+        "{zipfile}"
     log:
-        "logs/download.log"
+        "logs/download.{zipfile}.log"
     params:
-        url=config["database"]["url"],
-        tax_url=config["database"]["tax_url"]
+        url = lambda wildcards: config["database"][wildcards.zipfile]
     shell:
         """
-        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        curl -L -o $TMPDIR/bold_bins.zip {params.tax_url} >> {log} 2>&1
-        mv $TMPDIR/bold.zip {output[0]}
-        mv $TMPDIR/bold_bins.zip {output[1]}
+        curl -L -o $TMPDIR/{wildcards.zipfile} {params.url} > {log} 2>&1
+        mv $TMPDIR/{wildcards.zipfile} {output[0]}
         """
 
 rule extract:
     input:
-        "bold.zip",
-        "bold_bins.zip"
+        lambda wildcards: textfile_dict[wildcards.textfile]
     output:
-        "bold_info.tsv",
-        "bold_seqs.txt",
-        "bold_taxa.txt"
+        "{textfile}"
     log:
-        "logs/extract.log"
+        "logs/extract.{textfile}.log"
     shell:
         """
-        unzip -o -d $TMPDIR/ {input[0]} occurrences.txt dna.txt >> {log} 2>&1
-        unzip -o -d $TMPDIR/ {input[1]} taxon.txt >> {log} 2>&1
-        mv $TMPDIR/occurrences.txt {output[0]}
-        mv $TMPDIR/dna.txt {output[1]}
-        mv $TMPDIR/taxon.txt {output[2]}  
+        f=$(unzip -l {input[0]} | grep -w {output[0]} | rev | cut -f1 -d ' ' | rev)
+        unzip -o -d $TMPDIR/ {input[0]} $f >> {log} 2>&1
+        mv $TMPDIR/$f {output[0]}
         """
 
 rule filter:
@@ -56,9 +55,9 @@ rule filter:
     Extract record ids based on taxonomy
     """
     input:
-        "bold_info.tsv",
-        "bold_seqs.txt",
-        "bold_taxa.txt"
+        "occurrences.txt",
+        "dna.txt",
+        "taxon.txt"
     output:
         info = "bold_info_filtered.tsv",
         fasta = "bold_filtered.fasta",
