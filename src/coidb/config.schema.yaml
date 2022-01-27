@@ -21,8 +21,8 @@ properties:
     type: object
     default:
       pid: 1.0
-      url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
-      tax_url: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
+      bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+      bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
       gene:
         - "COI-5P"
       phyla: []
@@ -32,10 +32,10 @@ properties:
         description: Id threshold for clustering database with vsearch
         max: 1.0
         min: 0.0
-      url:
+      bold.zip:
         type: string
         description: URL to zipfile with database sequences + info
-      tax_url:
+      bold_bins.zip:
         type: string
         description: URL to zipfile with taxonomic information for BINS
       gene:
