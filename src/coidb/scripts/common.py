@@ -5,16 +5,43 @@ from tqdm import tqdm
 import sys
 import shutil
 import os
+import urllib.request
+import json
 
 
-def handle_nonuniq(recs):
-    newids = []
-    for i, r in enumerate(recs.record_id, start=1):
-        newid = f"{r}_{i}"
-        newids.append(newid)
-    recs.loc[:, "record_id"] = newids
-    return recs
+def logg(f):
+    def wrapper(dataf, *args, **kwargs):
+        tic = datetime.datetime.now()
+        rows_before = dataf.shape[0]
+        result = f(dataf, *args, **kwargs)
+        rows_after = result.shape[0]
+        toc = datetime.datetime.now()
+        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
+        return result
+    return wrapper
 
+
+@logg
+def start(dataf):
+    return dataf.copy()
+
+
+@logg
+def extract_bold_bins(dataf):
+    return dataf.loc[dataf.bold_id==dataf.bold_id]
+
+
+@logg
+def fillna(dataf):
+    return dataf.fillna("")
+
+
+@logg
+def filter_dataf(dataf, filter_vals=[], filter_col=None):
+    if len(filter_vals) > 0:
+        sys.stderr.write(f"Filtering dataframe to {len(filter_vals)} items in {filter_col}\n")
+        return dataf.loc[dataf[filter_col].isin(filter_vals)]
+    return dataf
 
 def write_seqs(seq_df, outfile, tmpfile):
     ranks = ["phylum", "class", "order", "family", "genus", "species", "bold_id"]
@@ -40,43 +67,6 @@ def write_seqs(seq_df, outfile, tmpfile):
     return seq_df.drop("seq", axis=1)
 
 
-def extract_species_name(value):
-    """
-    This function extracts the most common species name from a text
-    string such as:
-
-    Genus names applied to this BIN: Cerconota (59) Species names \
-    applied to this BIN: Cerconota Janzen217 (14), Cerconota Janzen233 \
-    (4), Cerconota Janzen82 (41)
-
-    or
-
-    Species names applied to this BIN: Melanchra adjuncta (98)
-
-    :param value: string to extract from
-    :return: most common species name
-    """
-    items = value.split("Species names applied to this BIN: ")[1]
-    sp_names = items.split("), ")
-    max_count = 0
-    sp_name = ""
-    for n in sp_names:
-        # Extract species names, making sure to cath cases where, e.g.
-        # n = 'Squalus megalops (vbs) (2)'
-        # as well as
-        # n = 'Squalus megalops (34)'
-        species = "(".join(n.split("(")[0:-1]).rstrip()
-        count = n.split("(")[-1]
-        try:
-            count = int(count.rstrip(")"))
-        except ValueError:
-            continue
-        if count >= max_count:
-            sp_name = species
-            max_count = count
-    return sp_name
-
-
 def filter_non_standard(df):
     """
     Removes sequences with non-standard nucleotides
@@ -100,53 +90,33 @@ def filter_non_standard(df):
 
 def filter(sm):
     genes = sm.params.genes
-    phyla = sm.params.phyla
+    taxa = sm.params.filter_taxa
+    filter_rank = sm.params.filter_rank
     # Read info
     sys.stderr.write(f"Reading info file {sm.input[0]}\n")
-    df = pd.read_csv(sm.input[0], sep="\t", usecols=[0, 4, 7, 8, 9, 10, 11, 12],
-                     names=["record_id", "bold_id", "phylum", "class", "order",
-                            "family", "genus", "species"],
+    df = pd.read_csv(sm.input[0], sep="\t", usecols=[0, 4],
+                     names=["record_id", "bold_id"],
                      dtype={'bold_id': str})
-    sys.stderr.write(f"{df.shape[0]} records read\n")
-    # Filter to only records with BOLD BIN ID
-    df = df.loc[df.bold_id==df.bold_id]
-    sys.stderr.write(f"{df.shape[0]} records with BOLD BIN ID remaining\n")
-    df.fillna("", inplace=True)
-    if len(phyla) > 0:
-        # Filter dataframe to phyla
-        sys.stderr.write("Filtering info file to phyla of interest\n")
-        df = df.loc[df.phylum.isin(phyla)]
-        sys.stderr.write(f"{df.shape[0]} records remaining\n")
+    # Process info dataframe
+    df = (df
+        .pipe(start)
+        .pipe(extract_bold_bins)
+        .pipe(fillna))
     # Read fasta
     sys.stderr.write(f"Reading fasta file {sm.input[1]}\n")
     seqs = pd.read_csv(sm.input[1], header=None, sep="\t", index_col=0,
                        names=["record_id", "gene", "seq"], usecols=[0,1,2])
-    sys.stderr.write(f"{seqs.shape[0]} sequences read\n")
-    if len(genes) > 0:
-        # Filter fasta to gene(s)
-        sys.stderr.write("Filtering sequences to gene(s) of interest\n")
-        seqs = seqs.loc[seqs.gene.isin(genes)]
-        sys.stderr.write(f"{seqs.shape[0]} sequences remaining\n")
-    # Read taxinfo
-    sys.stderr.write(f"Reading taxonomic info for BINS from {sm.input[2]}\n")
-    taxa = pd.read_csv(sm.input[2], header=None, sep="\t", usecols=[5,8],
-                       names=["BIN", "tax"],
-                       dtype={"BIN": str, "tax": str})
-    # Extract records with species names
-    bin_taxa = taxa.loc[(taxa.BIN.str.contains("BOLD")) & (
-        taxa.tax.str.contains("Species names applied to this BIN"))]
-    sys.stderr.write(f"Found {bin_taxa.shape[0]} BINS with species names\n")
-    bin_taxa.set_index("BIN", inplace=True)
-    bin_taxa = bin_taxa.to_dict()["tax"]
-    bin_species = {}
-    for key in tqdm(bin_taxa.keys(),
-                    desc="Extracting species names for BINs",
-                    unit=" bins", ):
-        value = bin_taxa[key]
-        sp_name = extract_species_name(value)
-        bin_species[key] = sp_name
-    # Update the BOLD BIN ids in the species column to species names
-    df.species = df.species.map(bin_species).fillna(df.species)
+    # Process seq dataframe
+    seqs = (seqs
+            .pipe(start)
+            .pipe(filter_dataf, genes, "gene"))
+    # Process backbone
+    sys.stderr.write(f"Reading GBIF backbone {sm.input[2]}\n")
+    backbone = pd.read_csv(sm.input[2], header=0, sep="\t", nrows=None,
+                           usecols=[0, 2, 5, 7, 11, 17, 18, 19, 20, 21, 22])
+    backbone = (backbone
+            .pipe(start)
+            .pipe(filter_dataf, taxa, filter_rank))
     # Merge in order to get the intersection
     sys.stderr.write("Merging info and sequences\n")
     seq_df = pd.merge(df, seqs, left_on="record_id", right_index=True,
