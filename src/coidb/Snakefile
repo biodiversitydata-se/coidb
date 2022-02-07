@@ -7,20 +7,24 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Validate config
 validate(config, "config.schema.yaml")
 
+nrows = None
+if config["testing"]["nrows"] > 0:
+    nrows = config["testing"]["nrows"]
+
 localrules: coidb, download, filter, clean, format
 
 wildcard_constraints:
-    textfile = "occurrences.txt|dna.txt|taxon.txt",
-    zipfile = "bold.zip|bold_bins.zip"
+    textfile = "occurrences.txt|dna.txt|Taxon.tsv",
+    zipfile = "bold.zip|backbone.zip"
 
-textfile_dict = {'taxon.txt': 'bold_bins.zip',
+textfile_dict = {'Taxon.tsv': 'backbone.zip',
                  'occurrences.txt': 'bold.zip',
                  'dna.txt': 'bold.zip'}
 
 rule coidb:
     input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
 
-rule download:
+rule download_zipfile:
     """
     Download zipfile with database sequences + info
     """
@@ -36,7 +40,11 @@ rule download:
         mv $TMPDIR/{wildcards.zipfile} {output[0]}
         """
 
-rule extract:
+rule download:
+    input:
+        textfile_dict.values()
+
+rule extract_zipfile:
     input:
         lambda wildcards: textfile_dict[wildcards.textfile]
     output:
@@ -50,21 +58,31 @@ rule extract:
         mv $TMPDIR/$f {output[0]}
         """
 
+
+rule extract:
+    input:
+        textfile_dict.keys()
+
 rule filter:
     """
-    Extract record ids based on taxonomy
+    Filter the BOLD data to genes and taxa of interest
+    
+    This also keeps only records with BOLD: ids
     """
     input:
         "occurrences.txt",
         "dna.txt",
-        "taxon.txt"
+        "Taxon.tsv"
     output:
         info = "bold_info_filtered.tsv",
         fasta = "bold_filtered.fasta",
     params:
         genes = config["database"]["gene"],
-        phyla = config["database"]["phyla"],
-        tmpf = "$TMPDIR/bold_filtered.fasta"
+        filter_taxa = config["database"]["taxa"],
+        filter_rank = config["database"]["rank"],
+        ranks = config["database"]["ranks"],
+        tmpf = "$TMPDIR/bold_filtered.fasta",
+        nrows = nrows
     script:
         "scripts/common.py"
 
