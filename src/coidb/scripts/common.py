@@ -1,12 +1,94 @@
 #!/usr/bin/env python
 
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 import sys
 import shutil
 import os
 import urllib.request
+import datetime
 import json
+
+def api_match_species(bin_id):
+    """
+    This function uses the GBIF API to match a BIN id to a species name.
+    It's only used as a fallback in case the add_species function does
+    not work, for instance due to improper taxonomic info added for a BIN.
+
+    :param bin_id: The BOLD bin id to match
+    :return: Species name or NaN
+    """
+    try:
+        with urllib.request.urlopen(f"https://api.gbif.org/v1/species/match?name={bin_id}") as response:
+            json_text = response.read()
+        response_dict = json.loads(json_text)
+        return response_dict["species"]
+    except:
+        return np.nan
+
+
+def add_species(species_bins, bin_tax_df, parent_df):
+    """
+    This function goes through putative species BINs, i.e. BINs that are
+    classified down to genus level and which may have species annotations also.
+    These have to be identified by looking up the name of the parent for each BIN.
+
+    :param species_bins: list of BOLD BIN ids that may have species assignments
+    :param bin_tax_df: the taxonomic dataframe
+    :param parent_df: dataframe with parents to the species bins
+    :return: the taxonmomic dataframe with species names added
+    """
+    for bold_id in tqdm(species_bins, unit=" BINs", desc="adding species"):
+        parent = bin_tax_df.loc[bold_id, "parentNameUsageID"]
+        if len(parent_df.loc[parent_df.taxonID == parent]) == 0:
+            continue
+        try:
+            # Try to get the species name from the parent backbone
+            bin_tax_df.loc[bold_id, "species"] = parent_df.loc[parent_df.taxonID==parent, "canonicalName"].values[0]
+        except IndexError:
+            # If that fails for some reason, do one attempt with the API
+            bin_tax_df.loc[bold_id, "species"] = api_match_species(bold_id)
+    return bin_tax_df
+
+
+def fill_unassigned(df, ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"]):
+    """
+    This function fills in 'the blanks' for each row in a dataframe
+    For example:
+    BOLD:ACQ8069 	Animalia 	Mollusca 	Gastropoda 	NaN 	Hermaeidae 	Mourgona 	NaN
+    BOLD:AAN1572 	Animalia 	Mollusca 	Gastropoda 	NaN 	Hermaeidae 	NaN 	    NaN
+
+    becomes:
+    BOLD:ACQ8069 	Animalia 	Mollusca 	Gastropoda 	Gastropoda_X 	Hermaeidae 	Mourgona 	Mourgona_X
+    BOLD:AAN1572 	Animalia 	Mollusca 	Gastropoda 	Gastropoda_X 	Hermaeidae 	Hermaeidae_X 	Hermaeidae_XX
+
+    :param df: Dataframe to fill
+    :param ranks: Ranks to iterate through
+    :return: A dataframe with filled ranks
+    """
+    d = {}
+    for row in tqdm(df.iterrows(), unit=" rows",
+                         total=df.shape[0],
+                         desc="filling unassigned ranks"):
+        unknowns = 0
+        for rank in ranks:
+            # If an NaN entry is found
+            if row[1][rank] != row[1][rank]:
+                # Get the previous rank and its classification
+                prev_rank = ranks.index(rank) - 1
+                prev = ranks[prev_rank]
+                # If this is the first time we're adding a suffix include the underscore
+                if unknowns == 0:
+                    row[1][rank] = row[1][prev] + "_X"
+                else:
+                    row[1][rank] = row[1][prev] + "X"
+                unknowns += 1
+            else:
+                # Reset the unknowns counter in case there are intermediate unassigned ranks
+                unknowns = 0
+        d[row[0]] = row[1][ranks].to_dict()
+    return pd.DataFrame(d).T
 
 
 def logg(f):
@@ -37,7 +119,7 @@ def fillna(dataf):
 
 
 @logg
-def filter_dataf(dataf, filter_vals=[], filter_col=None):
+def filter_dataframe(dataf, filter_vals=[], filter_col=None):
     if len(filter_vals) > 0:
         sys.stderr.write(f"Filtering dataframe to {len(filter_vals)} items in {filter_col}\n")
         return dataf.loc[dataf[filter_col].isin(filter_vals)]
@@ -59,6 +141,7 @@ def write_seqs(seq_df, outfile, tmpfile):
         for record_id in tqdm(seq_df.index,
                               desc=f"Writing sequences to temporary directory",
                               unit=" seqs"):
+            row = seq_df.loc[record_id]
             seq = seq_df.loc[record_id, "seq"]
             desc = ";".join([seq_df.loc[record_id, x] for x in ranks])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
@@ -89,54 +172,103 @@ def filter_non_standard(df):
 
 
 def filter(sm):
+    """
+    Function to filter the BOLD information from GBIF
+
+    :param sm:
+    :return:
+    """
     genes = sm.params.genes
     taxa = sm.params.filter_taxa
     filter_rank = sm.params.filter_rank
-    # Read info
-    sys.stderr.write(f"Reading info file {sm.input[0]}\n")
-    df = pd.read_csv(sm.input[0], sep="\t", usecols=[0, 4],
+    ranks = sm.params.ranks
+    nrows = sm.params.nrows
+    ####################################
+    ### Read and process occurrences ###
+    ####################################
+    sys.stderr.write(f"Reading {sm.input[0]}\n")
+    occurrences = pd.read_csv(sm.input[0], sep="\t", usecols=[0, 4],
                      names=["record_id", "bold_id"],
-                     dtype={'bold_id': str})
-    # Process info dataframe
-    df = (df
+                     dtype={'bold_id': str}, nrows=nrows)
+    sys.stderr.write(f"{occurrences.shape[0]} records read\n")
+    occurrences = (occurrences
         .pipe(start)
         .pipe(extract_bold_bins)
         .pipe(fillna))
-    # Read fasta
-    sys.stderr.write(f"Reading fasta file {sm.input[1]}\n")
+    ##################################
+    ### Read and process sequences ###
+    ##################################
+    sys.stderr.write(f"Reading {sm.input[1]}\n")
     seqs = pd.read_csv(sm.input[1], header=None, sep="\t", index_col=0,
-                       names=["record_id", "gene", "seq"], usecols=[0,1,2])
-    # Process seq dataframe
+                       names=["record_id", "gene", "seq"], usecols=[0,1,2],
+                       nrows=nrows)
+    sys.stderr.write(f"{seqs.shape[0]} records read\n")
     seqs = (seqs
             .pipe(start)
-            .pipe(filter_dataf, genes, "gene"))
-    # Process backbone
-    sys.stderr.write(f"Reading GBIF backbone {sm.input[2]}\n")
-    backbone = pd.read_csv(sm.input[2], header=0, sep="\t", nrows=None,
+            .pipe(filter_dataframe, genes, "gene"))
+    ##########################################
+    ### Read and process backbone taxonomy ###
+    ##########################################
+    sys.stderr.write(f"Reading {sm.input[2]}\n")
+    backbone = pd.read_csv(sm.input[2], header=0, sep="\t", nrows=nrows,
                            usecols=[0, 2, 5, 7, 11, 17, 18, 19, 20, 21, 22])
+    sys.stderr.write(f"{backbone.shape[0]} lines read\n")
     backbone = (backbone
             .pipe(start)
-            .pipe(filter_dataf, taxa, filter_rank))
-    # Merge in order to get the intersection
-    sys.stderr.write("Merging info and sequences\n")
-    seq_df = pd.merge(df, seqs, left_on="record_id", right_index=True,
+            .pipe(filter_dataframe, taxa, filter_rank))
+    #######################################
+    ### Merge occurrences and sequences ###
+    #######################################
+    sys.stderr.write(
+        f"Merging occurrences ({occurrences.shape[0]}) and sequence ({seqs.shape[0]}) records\n")
+    seq_df = pd.merge(occurrences, seqs, left_on="record_id", right_index=True,
                       how="inner")
-    sys.stderr.write(f"{seq_df.shape[0]} sequence records remaining\n")
-    # Reindex seq df
-    seq_df = seq_df.reset_index().drop("index", axis=1)
-    # Count record ids
-    rec_id_counts = seq_df.groupby("record_id").count()["gene"]
-    multi = rec_id_counts.loc[rec_id_counts > 1]
-    if multi.shape[0] > 0:
-        for multi_record in tqdm(multi.index,
-                             desc=f"Fixing {multi.shape[0]} non-unique ids",
-                            unit=" ids"):
-            recs = seq_df.loc[seq_df.record_id == multi_record]
-            recs = handle_nonuniq(recs.copy())
-            seq_df.loc[recs.index] = recs
-    seq_df.set_index("record_id", inplace=True)
+    sys.stderr.write(f"{seq_df.shape[0]} records remaining\n")
+    ################################
+    ### Remove duplicate records ###
+    ################################
+    sys.stderr.write(f"Removing duplicate records\n")
+    seq_df_nr = seq_df.groupby("record_id").first().reset_index()
+    sys.stderr.write(f"{seq_df.shape[0] - seq_df_nr.shape[0]} rows removed, {seq_df_nr.shape[0]} rows remaining\n")
+    ##################################
+    ### Assign taxonomy to records ###
+    ##################################
+    # Create new dataframe with scientific name as index
+    bin_tax_df = backbone.set_index("scientificName")
+    # Extract only BOLD IDs
+    bin_tax_df = bin_tax_df.loc[bin_tax_df.index.str.startswith("BOLD:")]
+    # Assign default species column
+    bin_tax_df = bin_tax_df.assign(
+        species=pd.Series([np.nan] * bin_tax_df.shape[0],
+                          index=bin_tax_df.index))
+    # Extract BOLD ids assigned down to genus level, putative species bins
+    species_bins = list(
+        bin_tax_df.loc[bin_tax_df.genus == bin_tax_df.genus].index)
+    sys.stderr.write(f"{len(species_bins)} BINs assigned to genus level\n")
+    # Extract ids of parents
+    parent_ids = bin_tax_df.loc[species_bins, "parentNameUsageID"].values
+    # Extract parent dataframe from parent ids
+    parent_df = backbone.loc[(backbone.taxonID.isin(parent_ids))&(backbone.taxonRank=="species")]
+    sys.stderr.write("Adding species names\n")
+    # Attempt to add species to species_bins using parent dataframe
+    bin_tax_df = add_species(species_bins, bin_tax_df, parent_df)
+    bins_with_species_names = bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species].shape[0]
+    unique_species_names = len(bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species, "species"].unique())
+    sys.stderr.write(f"Added {unique_species_names} unique species names to {bins_with_species_names} BINS\n")
+    # Fill unassigned ranks
+    sys.stderr.write("Filling unassigned ranks\n")
+    bin_tax_df = fill_unassigned(bin_tax_df, ranks)
+    ################################################
+    ### Merge BIN taxonomy with record dataframe ###
+    ################################################
+    sys.stderr.write(f"Merging BIN taxonomy with records\n")
+    df = pd.merge(seq_df_nr, bin_tax_df.loc[:, ranks], left_on="bold_id", right_index=True)
+    df.set_index("record_id", inplace=True)
+    #####################
+    ### Write to file ###
+    #####################
     # Write seqs to file
-    info_df = write_seqs(seq_df, sm.output.fasta, sm.params.tmpf)
+    info_df = write_seqs(df, sm.output.fasta, sm.params.tmpf)
     # Write info to file
     info_df.to_csv(sm.output.info, header=True, index=True, sep="\t")
 
