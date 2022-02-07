@@ -4,47 +4,86 @@ description: schema for config parameters
 type: object
 
 properties:
+  testing:
+    type: object
+    default:
+      nrows: 0
+    nrows:
+      type: integer
+      description: For testing purposes, set number of rows to load with pandas
+      default: 0
   primers:
     type: object
+    default:
+      forward: ["CCHGAYATRGCHTTYCCHCG"]
+      reverse: ["CDGGRTGNCCRAARAAYCA"]
     forward:
       type: array
       description: Forward primer sequence(s)
+      default: ["CCHGAYATRGCHTTYCCHCG"]
       items:
         type: string
     reverse:
       type: array
       description: Reverse primer sequence(s)
+      default: ["CDGGRTGNCCRAARAAYCA"]
       items:
         type: string
 
   database:
     type: object
     default:
-      pid: 1.0
+      pid: 0.99
       bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
-      bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
+      backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
       gene:
-        - "COI-5P"
-      phyla: []
+        - COI-5P
+      taxa: []
+      rank: "phylum"
+      ranks:
+        - kingdom
+        - phylum
+        - class
+        - order
+        - family
+        - genus
+        - species
     properties:
       pid:
         type: number
         description: Id threshold for clustering database with vsearch
-        max: 0.99
+        default: 0.99
+        max: 1.0
         min: 0.0
       bold.zip:
         type: string
+        default: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
         description: URL to zipfile with database sequences + info
-      bold_bins.zip:
+      backbone.zip:
         type: string
-        description: URL to zipfile with taxonomic information for BINS
+        default: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
+        description: URL to GBIF taxonomy backbone
       gene:
         type: array
         description: Genes of interest to extract from database
+        default:
+          - "COI-5P"
         items:
           type: string
-      phyla:
+      taxa:
         type: array
-        description: Phyla of interest to extract from database
+        description: Taxa of interest to extract from database
+        default: []
         items:
           type: string
+      rank:
+        type: string
+        description: Rank at which to filter using the taxa above
+        default: "phylum"
+      ranks:
+        type: array
+        description: Ranks to include in taxonomic info
+        default: ["kingdom", "phylum", "class", "order", "family", "genus", "species"]
+        items:
+          type: string
+          enum: ["kingdom", "phylum", "class", "order", "family", "genus", "species"]

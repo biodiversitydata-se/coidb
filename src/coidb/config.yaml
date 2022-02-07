@@ -10,8 +10,19 @@ database:
     bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
     # url to download zip file with 'taxon.txt' file
     bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
+    backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
     # gene of interest (will be used to filter sequences)
     gene:
-        - "COI-5P"
-    # phyla of interest (omit this in order to include all phyla)
-    phyla: []
+        - COI-5P
+    # taxa of interest (omit this in order to include all taxa)
+    taxa: []
+    # rank at which to filter
+    rank: "phylum"
+    ranks:
+        - kingdom
+        - phylum
+        - class
+        - order
+        - family
+        - genus
+        - species
