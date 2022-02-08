@@ -131,5 +131,7 @@ rule format:
     output:
         assignTaxaFasta = "bold_clustered.assignTaxonomy.fasta",
         addSpeciesFasta = "bold_clustered.addSpecies.fasta"
+    params:
+        ranks = config["database"]["ranks"]
     script:
         "scripts/common.py"
