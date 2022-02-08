@@ -92,12 +92,30 @@ def fill_unassigned(df, ranks=["kingdom", "phylum", "class", "order", "family", 
 
 
 def logg(f):
+    """
+    Decorator for dataframe processing
+    :param f:
+    :return:
+    """
     def wrapper(dataf, *args, **kwargs):
-        tic = datetime.datetime.now()
+        """
+        This wrapper outputs stats on running dataframe processing functions
+
+        :param dataf: input dataframe
+        :param args: arguments
+        :param kwargs: keyword arguments
+        :return: processed dataframes
+        """
+        # Get rows before processing
         rows_before = dataf.shape[0]
+        # Get start time
+        tic = datetime.datetime.now()
+        # Perform the processing
         result = f(dataf, *args, **kwargs)
-        rows_after = result.shape[0]
+        # Get end time
         toc = datetime.datetime.now()
+        # Get rows after processing
+        rows_after = result.shape[0]
         sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
         return result
     return wrapper
@@ -105,28 +123,63 @@ def logg(f):
 
 @logg
 def start(dataf):
+    """
+    Dummy function to generate a copy of the starting dataframe
+
+    :param dataf: Starting dataframe
+    :return: copy of dataframe
+    """
     return dataf.copy()
 
 
 @logg
 def extract_bold_bins(dataf):
+    """
+    Returns the dataframe filtered to only rows with a BOLD BIN id, i.e.
+    excluding NaN values
+
+    :param dataf: Input dataframe
+    :return: Filtered dataframe
+    """
     return dataf.loc[dataf.bold_id==dataf.bold_id]
 
 
 @logg
 def fillna(dataf):
+    """
+    Fills NaN values in dataframe and returns it
+
+    :param dataf: Input dataframe
+    :return: Processed dataframe
+    """
     return dataf.fillna("")
 
 
 @logg
 def filter_dataframe(dataf, filter_vals=[], filter_col=None):
+    """
+    Filter input dataframe based on column->value settings
+
+    :param dataf: Input dataframe
+    :param filter_vals: Value to filter with
+    :param filter_col: Column in dataframe to filter on
+    :return: Filtered dataframe
+    """
     if len(filter_vals) > 0:
         sys.stderr.write(f"Filtering dataframe to {len(filter_vals)} items in {filter_col}\n")
         return dataf.loc[dataf[filter_col].isin(filter_vals)]
     return dataf
 
-def write_seqs(seq_df, outfile, tmpfile):
-    ranks = ["phylum", "class", "order", "family", "genus", "species", "bold_id"]
+def write_seqs(seq_df, outfile, tmpfile, ranks):
+    """
+    Writes sequences to file, with taxonomic info in header
+
+    :param seq_df: Sequence dataframe, including BOLD BIN ids and taxonomic info
+    :param outfile: Output file to write to
+    :param tmpfile: Temporary file
+    :param ranks: list of ranks to write in header
+    :return: Dataframe of taxonomic information that remains
+    """
     old_index = []
     new_index = []
     # Filter out sequences with non-DNA characters
@@ -268,7 +321,7 @@ def filter(sm):
     ### Write to file ###
     #####################
     # Write seqs to file
-    info_df = write_seqs(df, sm.output.fasta, sm.params.tmpf)
+    info_df = write_seqs(df, sm.output.fasta, sm.params.tmpf, sm.params.ranks)
     # Write info to file
     info_df.to_csv(sm.output.info, header=True, index=True, sep="\t")
 
@@ -313,14 +366,16 @@ def format_fasta(sm):
     :param sm: snakemake object
     :return:
     """
-    ranks = ["phylum","class","order","family","genus"]
+    ranks = sm.params.ranks
+    if "species" in ranks:
+        ranks.remove("species")
     from Bio import SeqIO
     info = pd.read_csv(sm.input.info, sep="\t", index_col=0, header=0)
     with open(sm.output.assignTaxaFasta, 'w') as fh1, open(sm.output.addSpeciesFasta, 'w') as fh2:
         for record in SeqIO.parse(sm.input.fasta, "fasta"):
+            names = []
             id = record.id
             rec_info = info.loc[id.lstrip("centroid=")]
-            names = ["Eukaryota"]
             # Iterate ranks and add names as long as they are not NaN
             for r in ranks:
                 n = rec_info[r]
@@ -332,13 +387,8 @@ def format_fasta(sm):
             fh1.write(f">{id_tax}\n{record.seq}\n")
             species = rec_info["species"]
             bold_id = rec_info["bold_id"]
-            if species == species:
-                # If species name includes more info than bold_id, add
-                # species name as suffix
-                if species != bold_id:
-                    species = f"{bold_id} ({species})"
-                id_spec = f"{id} {species}"
-                fh2.write(f">{id_spec}\n{record.seq}\n")
+            id_spec = f"{id} {species}"
+            fh2.write(f">{id_spec}\n{record.seq}\n")
 
 
 def main(sm):
