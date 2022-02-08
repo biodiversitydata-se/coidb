@@ -75,7 +75,7 @@ rule filter:
         "Taxon.tsv"
     output:
         info = "bold_info_filtered.tsv",
-        fasta = "bold_filtered.fasta",
+        fasta = "bold.fasta",
     params:
         genes = config["database"]["gene"],
         filter_taxa = config["database"]["taxa"],
@@ -85,6 +85,29 @@ rule filter:
         nrows = nrows
     script:
         "scripts/common.py"
+
+rule remove_non_standard:
+    input:
+        "bold.fasta"
+    output:
+        "bold_filtered.fasta"
+    log:
+        "logs/remove_non_standard.log"
+    params:
+        tmpfile = "$TMPDIR/bold_seqkit_cleaned.fasta",
+        ids = "$TMPDIR/bold_non_standard_ids.txt",
+        fastafile = "$TMPDIR/bold_filtered.fasta"
+    shell:
+        """
+        exec &> {log} 
+        # Remove gap characters, then remove leading and trailing 'N'
+        seqkit seq -g {input} | seqkit replace -s -r "" -p "N+$" | seqkit replace -s -r "" -p "^N+" > {params.tmpfile}
+        # Now remove ids still containing non standard DNA chars
+        seqkit grep -s -r -p "[^ACGTacgt]+" {params.tmpfile} | seqkit seq -i | grep ">" | sed 's/>//g' > {params.ids}
+        seqkit grep -v -f {params.ids} {params.tmpfile} > {params.fastafile}
+        mv {params.fastafile} {output[0]}
+        seqkit stats {input[0]} {params.tmpfile} {output[0]}
+        """
 
 rule cluster:
     """
