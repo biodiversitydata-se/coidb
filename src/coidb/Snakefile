@@ -7,67 +7,112 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Validate config
 validate(config, "config.schema.yaml")
 
+nrows = None
+if config["testing"]["nrows"] > 0:
+    nrows = config["testing"]["nrows"]
+
 localrules: coidb, download, filter, clean, format
+
+wildcard_constraints:
+    textfile = "occurrences.txt|dna.txt|Taxon.tsv",
+    zipfile = "bold.zip|backbone.zip"
+
+textfile_dict = {'Taxon.tsv': 'backbone.zip',
+                 'occurrences.txt': 'bold.zip',
+                 'dna.txt': 'bold.zip'}
 
 rule coidb:
     input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
 
-rule download:
+rule download_zipfile:
     """
     Download zipfile with database sequences + info
     """
     output:
-        "bold.zip",
-        "bold_bins.zip"
+        "{zipfile}"
     log:
-        "logs/download.log"
+        "logs/download.{zipfile}.log"
     params:
-        url=config["database"]["url"],
-        tax_url=config["database"]["tax_url"]
+        url = lambda wildcards: config["database"][wildcards.zipfile]
     shell:
         """
-        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        curl -L -o $TMPDIR/bold_bins.zip {params.tax_url} >> {log} 2>&1
-        mv $TMPDIR/bold.zip {output[0]}
-        mv $TMPDIR/bold_bins.zip {output[1]}
+        curl -L -o $TMPDIR/{wildcards.zipfile} {params.url} > {log} 2>&1
+        mv $TMPDIR/{wildcards.zipfile} {output[0]}
         """
+
+rule download:
+    input:
+        textfile_dict.values()
+
+rule extract_zipfile:
+    input:
+        lambda wildcards: textfile_dict[wildcards.textfile]
+    output:
+        "{textfile}"
+    log:
+        "logs/extract.{textfile}.log"
+    shell:
+        """
+        f=$(unzip -l {input[0]} | grep -w {output[0]} | rev | cut -f1 -d ' ' | rev)
+        unzip -o -d $TMPDIR/ {input[0]} $f >> {log} 2>&1
+        mv $TMPDIR/$f {output[0]}
+        """
+
 
 rule extract:
     input:
-        "bold.zip",
-        "bold_bins.zip"
+        textfile_dict.keys()
+
+rule filter_data:
+    """
+    Filter the BOLD data to genes and taxa of interest
+    
+    This also keeps only records with BOLD: ids
+    """
+    input:
+        "occurrences.txt",
+        "dna.txt",
+        "Taxon.tsv"
     output:
-        "bold_info.tsv",
-        "bold_seqs.txt",
-        "bold_taxa.txt"
+        info = "bold_info_filtered.tsv",
+        fasta = "bold.fasta",
+    params:
+        genes = config["database"]["gene"],
+        filter_taxa = config["database"]["taxa"],
+        filter_rank = config["database"]["rank"],
+        ranks = config["database"]["ranks"],
+        tmpf = "$TMPDIR/bold_filtered.fasta",
+        nrows = nrows
+    script:
+        "scripts/common.py"
+
+rule remove_non_standard:
+    input:
+        "bold.fasta"
+    output:
+        "bold_filtered.fasta"
     log:
-        "logs/extract.log"
+        "logs/remove_non_standard.log"
+    params:
+        tmpfile = "$TMPDIR/bold_seqkit_cleaned.fasta",
+        ids = "$TMPDIR/bold_non_standard_ids.txt",
+        fastafile = "$TMPDIR/bold_filtered.fasta"
     shell:
         """
-        unzip -o -d $TMPDIR/ {input[0]} occurrences.txt dna.txt >> {log} 2>&1
-        unzip -o -d $TMPDIR/ {input[1]} taxon.txt >> {log} 2>&1
-        mv $TMPDIR/occurrences.txt {output[0]}
-        mv $TMPDIR/dna.txt {output[1]}
-        mv $TMPDIR/taxon.txt {output[2]}  
+        exec &> {log} 
+        # Remove gap characters, then remove leading and trailing 'N'
+        seqkit seq -g {input} | seqkit replace -s -r "" -p "N+$" | seqkit replace -s -r "" -p "^N+" > {params.tmpfile}
+        # Now remove ids still containing non standard DNA chars
+        seqkit grep -s -r -p "[^ACGTacgt]+" {params.tmpfile} | seqkit seq -i | grep ">" | sed 's/>//g' > {params.ids}
+        seqkit grep -v -f {params.ids} {params.tmpfile} > {params.fastafile}
+        mv {params.fastafile} {output[0]}
+        seqkit stats {input[0]} {params.tmpfile} {output[0]}
         """
 
 rule filter:
-    """
-    Extract record ids based on taxonomy
-    """
     input:
-        "bold_info.tsv",
-        "bold_seqs.txt",
-        "bold_taxa.txt"
-    output:
-        info = "bold_info_filtered.tsv",
-        fasta = "bold_filtered.fasta",
-    params:
-        genes = config["database"]["gene"],
-        phyla = config["database"]["phyla"],
-        tmpf = "$TMPDIR/bold_filtered.fasta"
-    script:
-        "scripts/common.py"
+        "bold_info_filtered.tsv",
+        "bold_filtered.fasta"
 
 rule cluster:
     """
@@ -114,5 +159,7 @@ rule format:
     output:
         assignTaxaFasta = "bold_clustered.assignTaxonomy.fasta",
         addSpeciesFasta = "bold_clustered.addSpecies.fasta"
+    params:
+        ranks = config["database"]["ranks"]
     script:
         "scripts/common.py"

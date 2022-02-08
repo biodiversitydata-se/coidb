@@ -29,16 +29,45 @@ def load_config(config_file):
     return config
 
 
-def test_url():
+def url_status(url):
     """
     Tests the default database url
     """
     from urllib import request
+    return request.urlopen(url).getcode()
+
+
+def test_bold_url():
     with resource_path('coidb', "config.yaml") as configfile_path:
         config = load_config(configfile_path)
-    url = config["database"]["url"]
-    status_code = request.urlopen(url).getcode()
+    url = config["database"]["bold.zip"]
+    status_code = url_status(url)
     assert status_code == 200
+
+
+def test_backbone_url():
+    with resource_path('coidb', "config.yaml") as configfile_path:
+        config = load_config(configfile_path)
+    url = config["database"]["backbone.zip"]
+    status_code = test_url(url)
+    assert status_code == 200
+
+
+def test_download_bold_zip():
+    args = populate_args()
+    args.targets = ['bold.zip']
+    assert coidb_run(args)
+
+
+def test_download_backbone_zip():
+    args = populate_args()
+    args.targets = ['backbone.zip']
+    assert coidb_run(args)
+
+
+def test_extract():
+    args = populate_args()
+    args.targets = ["extract"]
 
 
 def test_filter():

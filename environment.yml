@@ -10,4 +10,5 @@ dependencies:
   - tqdm
   - pandas
   - snakemake
+  - seqkit
   - importlib_resources
