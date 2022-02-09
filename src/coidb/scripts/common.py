@@ -52,7 +52,7 @@ def add_species(species_bins, bin_tax_df, parent_df):
     return bin_tax_df
 
 
-def fill_unassigned(df, ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"]):
+def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"]):
     """
     This function fills in 'the blanks' for each row in a dataframe
     For example:
@@ -64,31 +64,37 @@ def fill_unassigned(df, ranks=["kingdom", "phylum", "class", "order", "family", 
     BOLD:AAN1572 	Animalia 	Mollusca 	Gastropoda 	Gastropoda_X 	Hermaeidae 	Hermaeidae_X 	Hermaeidae_XX
 
     :param df: Dataframe to fill
+    :param bins: Bins with NaN ranks
     :param ranks: Ranks to iterate through
     :return: A dataframe with filled ranks
     """
     d = {}
-    for row in tqdm(df.iterrows(), unit=" rows",
-                         total=df.shape[0],
+    # Drop the bins to check into separate dataframe
+    others = df.drop(bins).loc[:, ranks]
+    # Extract bins to check for iteration
+    df = df.loc[bins, ranks]
+    for bold_bin in tqdm(bins, unit=" BINs",
+                         total=len(bins),
                          desc="filling unassigned ranks"):
         unknowns = 0
+        row = df.loc[bold_bin].to_dict()
         for rank in ranks:
             # If an NaN entry is found
-            if row[1][rank] != row[1][rank]:
+            if row[rank] != row[rank]:
                 # Get the previous rank and its classification
                 prev_rank = ranks.index(rank) - 1
                 prev = ranks[prev_rank]
                 # If this is the first time we're adding a suffix include the underscore
                 if unknowns == 0:
-                    row[1][rank] = row[1][prev] + "_X"
+                    row[rank] = row[prev] + "_X"
                 else:
-                    row[1][rank] = row[1][prev] + "X"
+                    row[rank] = row[prev] + "X"
                 unknowns += 1
             else:
                 # Reset the unknowns counter in case there are intermediate unassigned ranks
                 unknowns = 0
-        d[row[0]] = row[1][ranks].to_dict()
-    return pd.DataFrame(d).T
+        d[bold_bin] = row
+    return pd.concat([pd.DataFrame(d).T, others])
 
 
 def logg(f):
@@ -281,12 +287,14 @@ def filter(sm):
     sys.stderr.write("Adding species names\n")
     # Attempt to add species to species_bins using parent dataframe
     bin_tax_df = add_species(species_bins, bin_tax_df, parent_df)
+    bin_tax_df = bin_tax_df.loc[:, ranks]
     bins_with_species_names = bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species].shape[0]
     unique_species_names = len(bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species, "species"].unique())
     sys.stderr.write(f"Added {unique_species_names} unique species names to {bins_with_species_names} BINS\n")
     # Fill unassigned ranks
-    sys.stderr.write("Filling unassigned ranks\n")
-    bin_tax_df = fill_unassigned(bin_tax_df, ranks)
+    bins_to_fill = list(bin_tax_df.loc[bin_tax_df.loc[:, ranks].isna().sum(axis=1)>0].index)
+    sys.stderr.write(f"Filling unassigned ranks for {len(bins_to_fill)} BINs\n")
+    bin_tax_df = fill_unassigned(bin_tax_df, bins_to_fill, ranks)
     ################################################
     ### Merge BIN taxonomy with record dataframe ###
     ################################################
