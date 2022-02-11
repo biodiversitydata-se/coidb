@@ -1,1 +1,3 @@
-recursive include src/coidb/ Snakefile config*.yaml
+include src/coidb/Snakefile
+include src/coidb/config*.yaml
+include src/coidb/scripts/common.py
