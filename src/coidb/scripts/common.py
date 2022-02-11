@@ -194,10 +194,10 @@ def write_seqs(seq_df, outfile, tmpfile, ranks):
     tmpfile = os.path.expandvars(tmpfile)
     outfile = os.path.abspath(outfile)
     with open(tmpfile, 'w') as fhout:
-        for row in tqdm(seq_df.iterrows(),
+        for r in tqdm(seq_df.iterrows(),
                               desc=f"Writing sequences to temporary directory",
                               unit=" seqs"):
-            record_id, result = row
+            record_id, row = r
             seq = row["seq"]
             desc = ";".join([row[x] for x in ranks+["bold_id"]])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
