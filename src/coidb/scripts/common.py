@@ -11,6 +11,37 @@ import datetime
 import json
 import re
 
+
+def logg(f):
+    """
+    Decorator for dataframe processing
+    :param f:
+    :return:
+    """
+    def wrapper(dataf, *args, **kwargs):
+        """
+        This wrapper outputs stats on running dataframe processing functions
+
+        :param dataf: input dataframe
+        :param args: arguments
+        :param kwargs: keyword arguments
+        :return: processed dataframes
+        """
+        # Get rows before processing
+        rows_before = dataf.shape[0]
+        # Get start time
+        tic = datetime.datetime.now()
+        # Perform the processing
+        result = f(dataf, *args, **kwargs)
+        # Get end time
+        toc = datetime.datetime.now()
+        # Get rows after processing
+        rows_after = result.shape[0]
+        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
+        return result
+    return wrapper
+
+
 def api_match_species(bin_id):
     """
     This function uses the GBIF API to match a BIN id to a species name.
@@ -177,36 +208,6 @@ def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "fam
                 unknowns = 0
         d[bold_bin] = row
     return pd.concat([pd.DataFrame(d).T, others])
-
-
-def logg(f):
-    """
-    Decorator for dataframe processing
-    :param f:
-    :return:
-    """
-    def wrapper(dataf, *args, **kwargs):
-        """
-        This wrapper outputs stats on running dataframe processing functions
-
-        :param dataf: input dataframe
-        :param args: arguments
-        :param kwargs: keyword arguments
-        :return: processed dataframes
-        """
-        # Get rows before processing
-        rows_before = dataf.shape[0]
-        # Get start time
-        tic = datetime.datetime.now()
-        # Perform the processing
-        result = f(dataf, *args, **kwargs)
-        # Get end time
-        toc = datetime.datetime.now()
-        # Get rows after processing
-        rows_after = result.shape[0]
-        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
-        return result
-    return wrapper
 
 
 @logg
