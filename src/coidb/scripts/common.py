@@ -385,6 +385,7 @@ def filter(sm):
     bin_tax_df.reset_index(inplace=True)
     dups = find_non_unique_lineages(bin_tax_df, ranks)
     bin_tax_df = clean_up_non_unique_lineages(bin_tax_df, dups, ranks)
+    bin_tax_df.set_index("bold_id", inplace=True)
     ################################################
     ### Merge BIN taxonomy with record dataframe ###
     ################################################
