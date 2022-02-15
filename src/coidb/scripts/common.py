@@ -9,6 +9,38 @@ import os
 import urllib.request
 import datetime
 import json
+import re
+
+
+def logg(f):
+    """
+    Decorator for dataframe processing
+    :param f:
+    :return:
+    """
+    def wrapper(dataf, *args, **kwargs):
+        """
+        This wrapper outputs stats on running dataframe processing functions
+
+        :param dataf: input dataframe
+        :param args: arguments
+        :param kwargs: keyword arguments
+        :return: processed dataframes
+        """
+        # Get rows before processing
+        rows_before = dataf.shape[0]
+        # Get start time
+        tic = datetime.datetime.now()
+        # Perform the processing
+        result = f(dataf, *args, **kwargs)
+        # Get end time
+        toc = datetime.datetime.now()
+        # Get rows after processing
+        rows_after = result.shape[0]
+        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
+        return result
+    return wrapper
+
 
 def api_match_species(bin_id):
     """
@@ -50,6 +82,87 @@ def add_species(species_bins, bin_tax_df, parent_df):
             # If that fails for some reason, do one attempt with the API
             bin_tax_df.loc[bold_id, "species"] = api_match_species(bold_id)
     return bin_tax_df
+
+
+def find_non_unique_lineages(dataf, ranks):
+    """
+    This function identifies rank/taxa combinations where parent lineages
+    are not unique.
+
+    :param dataf: record dataframe
+    :param ranks: ranks to use
+    :return: list of rank:name items
+    """
+    bin_df = dataf.groupby(["bold_id"] + ranks).size().reset_index()
+    bin_tax_profiles = bin_df.drop(0, axis=1).groupby(ranks).size().reset_index()
+    tax_strings = {}
+    dups = []
+    # Iterate middle ranks
+    sys.stderr.write("Looking for non-unique lineages in ranks\n")
+    for rank in ranks[1:-1]:
+        tax_strings[rank]= {}
+        for taxa in tqdm(bin_tax_profiles[rank].unique(), total=len(bin_tax_profiles[rank].unique()), desc=f"{rank}: "):
+            try:
+                tax_strings[rank][taxa]
+            except KeyError:
+                tax_strings[rank][taxa] = []
+            # Get all rows with taxa
+            rows = bin_tax_profiles.loc[bin_tax_profiles[rank]==taxa]
+            parent_ranks = ranks[0:ranks.index(rank)]
+            for row in rows.iterrows():
+                tax_strings[rank][taxa].append(";".join(row[1][p] for p in parent_ranks))
+            if len(set(tax_strings[rank][taxa])) > 1:
+                dups.append(f"{rank}:{taxa}")
+    sys.stderr.write(f"Found {len(dups)} rank/taxa combinations with non-unique lineages\n")
+    return dups
+
+
+@logg
+def clean_up_non_unique_lineages(dataf, dups, ranks):
+    """
+    This function iterates the duplicated ranks/names and attempts to
+    identify BINs that can be removed and kept in order to make the
+    dataframe unique for parent lineages.
+
+    As an example, the genus Aphaenogaster can be present for BINs like this:
+    Animalia 	Animalia_X 	Animalia_XX 	Animalia_XXX 	Animalia_XXXX 	Aphaenogaster
+    Animalia 	Arthropoda 	Insecta 	    Hymenoptera 	Formicidae 	    Aphaenogaster
+
+    This function will identify BINs assigned according to the first row, and mark
+    them for removal, while keeping BINs assigned as in the second row.
+
+    :param dataf: Record dataframe
+    :param dups: Rank/names causing non-uniqueness in dataframe
+    :param ranks: Ranks used in dataframe
+    :return: Return dataframe cleaned of BINs identified for removal
+    """
+    regex = re.compile(".+(_[X]+)$")
+    bin_df = dataf.groupby(["bold_id"] + ranks).size().reset_index()
+    bins_to_remove = []
+    # items in dups have the format 'rank:taxname', e.g. 'genus:Peyssonnelia'
+    for item in dups:
+        rank, name = item.split(":")
+        group_ranks = ranks[:ranks.index(rank)]
+        _df = bin_df.loc[bin_df[rank]==name]
+        _bins_to_remove = []
+        for row in _df.groupby(group_ranks).size().reset_index().iterrows():
+            # Check whether parent ranks have '_X' in them
+            unassigned = sum([1 if x else 0 for x in [regex.match(row[1][rank]) for rank in group_ranks]])
+            if unassigned > 0:
+                # Mark BINs with lineage to be deleted
+                _ = bin_df.copy()
+                for r in group_ranks:
+                    _ = _.loc[_[r] == row[1][r]]
+                _bins_to_remove += list(_.loc[_[rank]==name].bold_id.values)
+        # Test if lineages are unique after removing BINs
+        if _df.loc[~_df.bold_id.isin(_bins_to_remove)].groupby(group_ranks).size().reset_index().shape[0] == 1:
+            # if removing these BINs was enough to generate a single lineage
+            # add bins to list to remove
+            bins_to_remove += _bins_to_remove
+        else:
+            # if not, also remove the rest of BINs assigned to the taxa:rank combo
+            bins_to_remove += list(_df.bold_id.unique())
+    return dataf.loc[~dataf["bold_id"].isin(bins_to_remove)]
 
 
 def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"]):
@@ -95,36 +208,6 @@ def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "fam
                 unknowns = 0
         d[bold_bin] = row
     return pd.concat([pd.DataFrame(d).T, others])
-
-
-def logg(f):
-    """
-    Decorator for dataframe processing
-    :param f:
-    :return:
-    """
-    def wrapper(dataf, *args, **kwargs):
-        """
-        This wrapper outputs stats on running dataframe processing functions
-
-        :param dataf: input dataframe
-        :param args: arguments
-        :param kwargs: keyword arguments
-        :return: processed dataframes
-        """
-        # Get rows before processing
-        rows_before = dataf.shape[0]
-        # Get start time
-        tic = datetime.datetime.now()
-        # Perform the processing
-        result = f(dataf, *args, **kwargs)
-        # Get end time
-        toc = datetime.datetime.now()
-        # Get rows after processing
-        rows_after = result.shape[0]
-        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
-        return result
-    return wrapper
 
 
 @logg
@@ -194,12 +277,12 @@ def write_seqs(seq_df, outfile, tmpfile, ranks):
     tmpfile = os.path.expandvars(tmpfile)
     outfile = os.path.abspath(outfile)
     with open(tmpfile, 'w') as fhout:
-        for record_id in tqdm(seq_df.index,
+        for r in tqdm(seq_df.iterrows(),
                               desc=f"Writing sequences to temporary directory",
                               unit=" seqs"):
-            row = seq_df.loc[record_id]
-            seq = seq_df.loc[record_id, "seq"]
-            desc = ";".join([seq_df.loc[record_id, x] for x in ranks])
+            record_id, row = r
+            seq = row["seq"]
+            desc = ";".join([row[x] for x in ranks+["bold_id"]])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
     sys.stderr.write(f"Moving {tmpfile} to {outfile}\n")
     shutil.move(tmpfile, outfile)
@@ -295,6 +378,14 @@ def filter(sm):
     bins_to_fill = list(bin_tax_df.loc[bin_tax_df.loc[:, ranks].isna().sum(axis=1)>0].index)
     sys.stderr.write(f"Filling unassigned ranks for {len(bins_to_fill)} BINs\n")
     bin_tax_df = fill_unassigned(bin_tax_df, bins_to_fill, ranks)
+    ###############################################
+    ### Identify and remove non-unique lineages ###
+    ###############################################
+    bin_tax_df.index.name = "bold_id"
+    bin_tax_df.reset_index(inplace=True)
+    dups = find_non_unique_lineages(bin_tax_df, ranks)
+    bin_tax_df = clean_up_non_unique_lineages(bin_tax_df, dups, ranks)
+    bin_tax_df.set_index("bold_id", inplace=True)
     ################################################
     ### Merge BIN taxonomy with record dataframe ###
     ################################################
