@@ -40,7 +40,6 @@ properties:
         - COI-5P
       taxa: []
       rank: "phylum"
-      remove_non_unique: False
       ranks:
         - kingdom
         - phylum
@@ -56,10 +55,6 @@ properties:
         default: 0.99
         max: 1.0
         min: 0.0
-      remove_non_unique:
-        type: boolean
-        description: Remove BINs that cause non-unique lineages
-        default: False
       bold.zip:
         type: string
         default: "https://hosted-datasets.gbif.org/ibol/ibol.zip"

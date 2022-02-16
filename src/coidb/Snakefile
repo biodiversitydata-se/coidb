@@ -76,14 +76,15 @@ rule filter_data:
     output:
         info = "bold_info_filtered.tsv",
         fasta = "bold.fasta",
+    log:
+        "bold_info_non-unique-taxa.txt"
     params:
         genes = config["database"]["gene"],
         filter_taxa = config["database"]["taxa"],
         filter_rank = config["database"]["rank"],
         ranks = config["database"]["ranks"],
         tmpf = "$TMPDIR/bold_filtered.fasta",
-        nrows = nrows,
-        remove_non_unique = config["database"]["remove_non_unique"]
+        nrows = nrows
     script:
         "scripts/common.py"
 
