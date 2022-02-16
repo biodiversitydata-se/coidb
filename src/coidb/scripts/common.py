@@ -392,7 +392,7 @@ def filter(sm):
     ### Merge BIN taxonomy with record dataframe ###
     ################################################
     sys.stderr.write(f"Merging BIN taxonomy with records\n")
-    df = pd.merge(seq_df_nr, bin_tax_df.loc[:, ranks], left_on="bold_id", right_index=True)
+    df = pd.merge(seq_df_nr, bin_tax_df.loc[:, ranks], left_on="bold_id", how="inner", right_index=True)
     df.set_index("record_id", inplace=True)
     #####################
     ### Write to file ###
