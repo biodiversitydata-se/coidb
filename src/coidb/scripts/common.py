@@ -301,6 +301,7 @@ def filter(sm):
     filter_rank = sm.params.filter_rank
     ranks = sm.params.ranks
     nrows = sm.params.nrows
+    remove_non_unique = sm.params.remove_non_unique
     ####################################
     ### Read and process occurrences ###
     ####################################
@@ -381,11 +382,12 @@ def filter(sm):
     ###############################################
     ### Identify and remove non-unique lineages ###
     ###############################################
-    bin_tax_df.index.name = "bold_id"
-    bin_tax_df.reset_index(inplace=True)
-    dups = find_non_unique_lineages(bin_tax_df, ranks)
-    bin_tax_df = clean_up_non_unique_lineages(bin_tax_df, dups, ranks)
-    bin_tax_df.set_index("bold_id", inplace=True)
+    if remove_non_unique:
+        bin_tax_df.index.name = "bold_id"
+        bin_tax_df.reset_index(inplace=True)
+        dups = find_non_unique_lineages(bin_tax_df, ranks)
+        bin_tax_df = clean_up_non_unique_lineages(bin_tax_df, dups, ranks)
+        bin_tax_df.set_index("bold_id", inplace=True)
     ################################################
     ### Merge BIN taxonomy with record dataframe ###
     ################################################

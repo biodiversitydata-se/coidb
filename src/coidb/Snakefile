@@ -82,7 +82,8 @@ rule filter_data:
         filter_rank = config["database"]["rank"],
         ranks = config["database"]["ranks"],
         tmpf = "$TMPDIR/bold_filtered.fasta",
-        nrows = nrows
+        nrows = nrows,
+        remove_non_unique = config["database"]["remove_non_unique"]
     script:
         "scripts/common.py"
 
