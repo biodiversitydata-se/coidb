@@ -12,3 +12,4 @@ dependencies:
   - snakemake
   - seqkit
   - importlib_resources
+  - unzip
