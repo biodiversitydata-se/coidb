@@ -503,8 +503,8 @@ def format_fasta(sm):
     :return:
     """
     ranks = sm.params.ranks
-    if "species" in ranks:
-        ranks.remove("species")
+    #if "species" in ranks:
+    #    ranks.remove("species")
     from Bio import SeqIO
     info = pd.read_csv(sm.input.info, sep="\t", index_col=0, header=0)
     with open(sm.output.assignTaxaFasta, 'w') as fh1, open(sm.output.addSpeciesFasta, 'w') as fh2:
