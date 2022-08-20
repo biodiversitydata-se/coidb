@@ -25,6 +25,8 @@ and each fasta header contains the taxonomic ranks + the BIN ID assigned to the
 record. The taxonomic information for each record is also given in the tab-separated
 file bold_info_filtered.tsv.gz.
 
+The dataset was last created on February 18, 2022.
+
 ### Methods
 The code used to generate this dataset consists of a snakemake workflow wrapped
 into a python package that can be installed with [conda](https://docs.conda.io/en/latest/miniconda.html)
