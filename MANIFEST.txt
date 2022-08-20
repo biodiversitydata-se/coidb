@@ -1,0 +1,6 @@
+README.md (4 kB)
+
+# Sequences
+bold_clustered_cleaned.fasta.gz (93420 kB)
+# Tab-separated taxonomic info
+bold_info_filtered.tsv.gz (45088 kB)
