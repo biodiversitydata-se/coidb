@@ -126,9 +126,7 @@ rule cluster:
         fasta = "bold_clustered.fasta"
     log:
         "logs/bold/cluster.log"
-    conda:
-        "envs/cluster.yml"
-    threads: 10
+    threads: 20
     resources:
         runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 10
     params:
