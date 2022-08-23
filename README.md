@@ -6,12 +6,12 @@ Author: SBDI molecular data team
 Contact e-mail: john.sundh@scilifelab.se
 DOI: 10.17044/scilifelab.20514192
 License: CC BY 4.0
-Categories: 
-Item type: 
-Keywords: ITS, UNITE, PlutoF, SBDI, Ampliseq, Species Hypothesis, SH  
+Categories: Bioinformatics and computational biology not elsewhere classified, Computational ecology and phylogenetics, Ecology not elsewhere classified
+Item type: Dataset
+Keywords: COI sequence analysis, Ampliseq  
 Funding: Swedish Research Council (VR), grant number 2019-00242. National Bioinformatic Infrastructure Sweden
 
-This README file was last updated: 2022-08-20
+This README file was last updated: 2022-08-23
 
 Please cite as: Swedish Biodiversity Data Infrastructure (SBDI; 2022). COI reference sequences from BOLD DB
 
