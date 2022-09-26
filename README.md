@@ -35,8 +35,40 @@ into a python package that can be installed with [conda](https://docs.conda.io/e
 Firstly sequence and taxonomic information for records in the BOLD database is 
 downloaded from the [GBIF Hosted Datasets](https://hosted-datasets.gbif.org/ibol/).
 This data is then filtered to only keep records annotated as 'COI-5P' and assigned
-to a BIN ID. The taxonomic information is parsed in order to assign species names
-and resolve higher level ranks for each BIN ID. Sequences are processed to remove
+to a BIN ID and duplicate entries are removed. 
+
+#### Taxonomy
+The taxonomic information obtained from GBIF is then parsed in order to extract
+species names to BOLD BINs. This is done by:
+1. find all BOLD BINs with a taxonomic assignment at genus level, these likely have
+species names assigned from GBIF (see methods for species assignment [here](https://www.mdpi.com/2076-2607/8/12/1910/htm))
+2. obtain all parent taxonomic ids for BOLD BINs from step 1 and use these to 
+look up the species name for the BOLD BINs. 
+3. For BOLD BINs where species name look-up failed in step 2, try to obtain 
+species name using the [GBIF API](https://www.gbif.org/developer/summary).
+
+The taxonomic data is then searched for rows where missing values for ranks are 
+filled with the last known higher level rank, suffixed with `_X`. For instance,
+
+| BOLD BIN     | kingdom   | phylum          | class | order       | family | genus | species |
+|--------------|-----------|-----------------|-------|-------------|--------|-------|---------|
+| BOLD:ACX1129 | Animalia  | Platyhelminthes | NaN   | Polycladida | NaN    | NaN   | NaN     |
+| BOLD:ACX6548 | Chromista | Ochrophyta      | NaN   | NaN         | NaN    | NaN   | NaN     |
+
+becomes:
+
+
+| BOLD BIN     | kingdom   | phylum          | class             | order         | family         | genus           | species          |
+|--------------|-----------|-----------------|-------------------|---------------|----------------|-----------------|------------------|
+| BOLD:ACX1129 | Animalia  | Platyhelminthes | Platyhelminthes_X | Polycladida   | Polycladida_X  | Polycladida_XX  | Polycladida_XXX  |
+| BOLD:ACX6548 | Chromista | Ochrophyta      | Ochrophyta_X      | Ochrophyta_XX | Ochrophyta_XXX | Ochrophyta_XXXX | Ochrophyta_XXXXX |
+
+As you can see, an `X` is appended for each downstream rank with a missing assignment.
+
+
+
+
+Sequences are processed to remove
 gap characters and leading and trailing `N`s. After this, any sequences with
 remaining non-standard characters are removed.
 Sequences are then clustered at 100% identity using [vsearch](https://github.com/torognes/vsearch) 
