@@ -1,5 +1,10 @@
 # COI reference sequences from BOLD DB
 
+## Installation and usage
+
+Please see the [Wiki](https://github.com/biodiversitydata-se/coidb/wiki) for 
+detailed install and usage information.
+
 ## General information
 
 Author: SBDI molecular data team  
