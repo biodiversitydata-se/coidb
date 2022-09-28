@@ -57,7 +57,6 @@ filled with the last known higher level rank, suffixed with `_X`. For instance,
 
 becomes:
 
-
 | BOLD BIN     | kingdom   | phylum          | class             | order         | family         | genus           | species          |
 |--------------|-----------|-----------------|-------------------|---------------|----------------|-----------------|------------------|
 | BOLD:ACX1129 | Animalia  | Platyhelminthes | Platyhelminthes_X | Polycladida   | Polycladida_X  | Polycladida_XX  | Polycladida_XXX  |
@@ -65,12 +64,31 @@ becomes:
 
 As you can see, an `X` is appended for each downstream rank with a missing assignment.
 
+BOLD BINs are then screened for cases where there are more than 1 unique parent 
+lineage for the same taxonomic assignment. For example, the following taxonomic 
+information may be found for BOLD BINs with assignment 'Aphaenogaster' at the
+genus level.
 
+| kingdom  | phylym     | class       | order         | family        | genus         |
+|----------|------------|-------------|---------------|---------------|---------------|
+| Animalia | Animalia_X | Animalia_XX | Animalia_XXX  | Animalia_XXXX | Aphaenogaster |
+| Animalia | Arthropoda | Insecta     | Hymenoptera   | Formicidae    | Aphaenogaster |               
 
+A check is first made to see if unique parent lineages can be obtained by 
+removing BINs that only have missing assignments for parent ranks up to and including 
+phylum. If that doesn't result in a unique parent lineage, the conflicting rank
+assignments are prefixed with the lowest assigned parent rank. 
 
-Sequences are processed to remove
-gap characters and leading and trailing `N`s. After this, any sequences with
-remaining non-standard characters are removed.
+For example, BOLD BINs with genus level assignment 'Paralagenidium' have both 
+`k_Chromista;p_Oomycota;c_Peronosporea;o_Peronosporales;f_Pythiaceae` and 
+`k_Chromista;p_Ochrophyta;c_Ochrophyta_X;o_Ochrophyta_XX;f_Ochrophyta_XXX` as parent
+lineages. Since these conflicts cannot be resolved by removing BINs (all BINs have
+assignments at phylum level), the taxa labels at genus and species level are prefixed
+with either `Pythiaceae_` or `Ochrophyta_XXX_`.
+
+#### Sequence processing
+Sequences are then processed to remove gap characters and leading and trailing 
+`N`s. After this, any sequences with remaining non-standard characters are removed.
 Sequences are then clustered at 100% identity using [vsearch](https://github.com/torognes/vsearch) 
 (Rognes _et al._ 2016). This clustering is done separately for sequences assigned 
 to each BIN ID.   
