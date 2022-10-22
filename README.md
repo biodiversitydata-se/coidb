@@ -39,6 +39,10 @@ into a python package that can be installed with [conda](https://docs.conda.io/e
 
 Firstly sequence and taxonomic information for records in the BOLD database is 
 downloaded from the [GBIF Hosted Datasets](https://hosted-datasets.gbif.org/ibol/).
+GBIF processes taxonomic information from BOLD in order to resolve ambiguous 
+assignments for BOLD BINs. When there are conflicting assignments at a taxonomic 
+rank an 80% consensus rule is applied to keep _e.g._ a species level assignment
+if four out of five names in the BIN are equal [Kõljalg et al 2020](https://www.mdpi.com/2076-2607/8/12/1910/htm).
 This data is then filtered to only keep records annotated as 'COI-5P' and assigned
 to a BIN ID and duplicate entries are removed. 
 
