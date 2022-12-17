@@ -529,7 +529,7 @@ def format_fasta(sm):
 
 def main(sm):
     toolbox = {'filter_data': filter,
-               'format': format_fasta,
+               'format_dada2': format_fasta,
                'clean': clean_fasta}
     toolbox[sm.rule](sm)
 
