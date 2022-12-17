@@ -87,3 +87,32 @@ properties:
         items:
           type: string
           enum: ["kingdom", "phylum", "class", "order", "family", "genus", "species"]
+  sintax:
+    type: object
+    default:
+      ranks: ["domain", "kingdom", "phylum", "class", "order", "family", "genus", "species"]
+      replace_ranks: ["kingdom=domain", "phylum=kingdom", "class=phylum", "order=class", "family=order", "genus=family", "species=genus", "bold_id=species"]
+    ranks:
+      type: array
+      description: Ranks to include in sintax formatted fasta
+      default:
+        - "domain"
+        - "kingdom"
+        - "phylum"
+        - "class"
+        - "order"
+        - "family"
+        - "genus"
+        - "species"
+    replace_ranks:
+      type: array
+      description: Replacement keys for ranks
+      default:
+        - "kingdom=domain"
+        - "phylum=kingdom"
+        - "class=phylum"
+        - "order=class"
+        - "family=order"
+        - "genus=family"
+        - "species=genus"
+        - "bold_id=species"
