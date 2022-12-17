@@ -177,5 +177,5 @@ rule format_sintax:
         replace = config["sintax"]["replace_ranks"],
     shell:
         """
-        format_sintax.py {input.fasta} {input.info} {output.fasta} --ranks {params.ranks} --replace {params.replace} 2>{log}
+        format_sintax.py {input.fasta} {input.info} {output.fasta} --ranks {params.ranks} --replace_rank {params.replace} 2>{log}
         """
