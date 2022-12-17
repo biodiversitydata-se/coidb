@@ -11,7 +11,7 @@ nrows = None
 if config["testing"]["nrows"] > 0:
     nrows = config["testing"]["nrows"]
 
-localrules: coidb, download, filter, clean, format
+localrules: coidb, download, filter, clean, format_sintax, format_dada2
 
 wildcard_constraints:
     textfile = "occurrences.txt|dna.txt|Taxon.tsv",
