@@ -22,7 +22,7 @@ textfile_dict = {'Taxon.tsv': 'backbone.zip',
                  'dna.txt': 'bold.zip'}
 
 rule coidb:
-    input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
+    input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies", "sintax"])
 
 rule download_zipfile:
     """
@@ -149,7 +149,7 @@ rule clean:
         "scripts/common.py"
 
 
-rule format:
+rule format_dada2:
     """
     Formats the clustered fasta file into DADA2-ready files
     """
@@ -163,3 +163,19 @@ rule format:
         ranks = config["database"]["ranks"]
     script:
         "scripts/common.py"
+
+rule format_sintax:
+    input:
+        fasta="bold_clustered_cleaned.fasta",
+        info="bold_info_filtered.tsv"
+    output:
+        fasta = "bold_clustered.sintax.fasta"
+    log:
+        "logs/bold/format_sintax.log"
+    params:
+        ranks = config["sintax"]["ranks"],
+        replace = config["sintax"]["replace_ranks"],
+    shell:
+        """
+        format_sintax.py {input.fasta} {input.info} {output.fasta} --ranks {params.ranks} --replace {params.replace} 2>{log}
+        """
