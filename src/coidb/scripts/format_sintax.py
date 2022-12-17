@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 from Bio.SeqIO import parse
 import pandas as pd
+from tqdm import tqdm
 
 
 def read_info(f, replacements=None):
@@ -21,7 +22,7 @@ def main(args):
         set(info.columns).intersection(args.ranks)
     ), "not all ranks found in info file"
     with open(args.outfile, "w") as fhout:
-        for record in parse(args.fasta, "fasta"):
+        for record in tqdm(parse(args.fasta, "fasta"), unit=" records", desc="formatting records"):
             taxlabels = [info.loc[record.id][x] for x in args.ranks]
             taxprefix = [x[0] for x in args.ranks]
             desc = ",".join(
