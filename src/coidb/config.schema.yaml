@@ -52,7 +52,7 @@ properties:
       pid:
         type: number
         description: Id threshold for clustering database with vsearch
-        default: 0.99
+        default: 1.0
         max: 1.0
         min: 0.0
       bold.zip:
