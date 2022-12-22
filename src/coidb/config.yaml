@@ -5,12 +5,12 @@ primers:
         - "CDGGRTGNCCRAARAAYCA"
 database:
     # Percent identity to cluster seqs in the database by
-    pid: 0.99
+    pid: 1.0
     # url to download info and sequence files from
     bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
     # url to download zip file with 'taxon.txt' file
-    bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2021_02_08.zip"
-    backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
+    bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2022_02_08.zip"
+    backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/2022-11-23/backbone.zip"
     # gene of interest (will be used to filter sequences)
     gene:
         - COI-5P
@@ -26,3 +26,22 @@ database:
         - family
         - genus
         - species
+sintax:
+    ranks:
+        - domain
+        - kingdom
+        - phylum
+        - class
+        - order
+        - family
+        - genus
+        - species
+    replace_ranks:
+        - "kingdom=domain"
+        - "phylum=kingdom"
+        - "class=phylum"
+        - "order=class"
+        - "family=order"
+        - "genus=family"
+        - "species=genus"
+        - "bold_id=species"

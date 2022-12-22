@@ -1,8 +1,10 @@
 from snakemake.utils import validate
 
+
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
 singularity: "docker://continuumio/miniconda3:4.9.2"
+
 
 # Validate config
 validate(config, "config.schema.yaml")
@@ -11,46 +13,62 @@ nrows = None
 if config["testing"]["nrows"] > 0:
     nrows = config["testing"]["nrows"]
 
-localrules: coidb, download, filter, clean, format
+
+localrules:
+    coidb,
+    download,
+    filter,
+    clean,
+    format_sintax,
+    format_dada2,
+
 
 wildcard_constraints:
-    textfile = "occurrences.txt|dna.txt|Taxon.tsv",
-    zipfile = "bold.zip|backbone.zip"
+    textfile="occurrences.txt|dna.txt|Taxon.tsv",
+    zipfile="bold.zip|backbone.zip",
 
-textfile_dict = {'Taxon.tsv': 'backbone.zip',
-                 'occurrences.txt': 'bold.zip',
-                 'dna.txt': 'bold.zip'}
+
+textfile_dict = {
+    "Taxon.tsv": "backbone.zip",
+    "occurrences.txt": "bold.zip",
+    "dna.txt": "bold.zip",
+}
+
 
 rule coidb:
-    input: expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies"])
+    input:
+        expand("bold_clustered.{w}.fasta", w=["assignTaxonomy", "addSpecies", "sintax"]),
+
 
 rule download_zipfile:
     """
     Download zipfile with database sequences + info
     """
     output:
-        "{zipfile}"
+        "{zipfile}",
     log:
-        "logs/download.{zipfile}.log"
+        "logs/download.{zipfile}.log",
     params:
-        url = lambda wildcards: config["database"][wildcards.zipfile]
+        url=lambda wildcards: config["database"][wildcards.zipfile],
     shell:
         """
         curl -L -o $TMPDIR/{wildcards.zipfile} {params.url} > {log} 2>&1
         mv $TMPDIR/{wildcards.zipfile} {output[0]}
         """
 
+
 rule download:
     input:
-        textfile_dict.values()
+        textfile_dict.values(),
+
 
 rule extract_zipfile:
     input:
-        lambda wildcards: textfile_dict[wildcards.textfile]
+        lambda wildcards: textfile_dict[wildcards.textfile],
     output:
-        "{textfile}"
+        "{textfile}",
     log:
-        "logs/extract.{textfile}.log"
+        "logs/extract.{textfile}.log",
     shell:
         """
         f=$(unzip -l {input[0]} | grep -w {output[0]} | rev | cut -f1 -d ' ' | rev)
@@ -61,7 +79,8 @@ rule extract_zipfile:
 
 rule extract:
     input:
-        textfile_dict.keys()
+        textfile_dict.keys(),
+
 
 rule filter_data:
     """
@@ -72,33 +91,34 @@ rule filter_data:
     input:
         "occurrences.txt",
         "dna.txt",
-        "Taxon.tsv"
+        "Taxon.tsv",
     output:
-        info = "bold_info_filtered.tsv",
-        fasta = "bold.fasta",
+        info="bold_info_filtered.tsv",
+        fasta="bold.fasta",
     log:
-        "bold_info_non-unique-taxa.txt"
+        "bold_info_non-unique-taxa.txt",
     params:
-        genes = config["database"]["gene"],
-        filter_taxa = config["database"]["taxa"],
-        filter_rank = config["database"]["rank"],
-        ranks = config["database"]["ranks"],
-        tmpf = "$TMPDIR/bold_filtered.fasta",
-        nrows = nrows
+        genes=config["database"]["gene"],
+        filter_taxa=config["database"]["taxa"],
+        filter_rank=config["database"]["rank"],
+        ranks=config["database"]["ranks"],
+        tmpf="$TMPDIR/bold_filtered.fasta",
+        nrows=nrows,
     script:
         "scripts/common.py"
 
+
 rule remove_non_standard:
     input:
-        "bold.fasta"
+        "bold.fasta",
     output:
-        "bold_filtered.fasta"
+        "bold_filtered.fasta",
     log:
-        "logs/remove_non_standard.log"
+        "logs/remove_non_standard.log",
     params:
-        tmpfile = "$TMPDIR/bold_seqkit_cleaned.fasta",
-        ids = "$TMPDIR/bold_non_standard_ids.txt",
-        fastafile = "$TMPDIR/bold_filtered.fasta"
+        tmpfile="$TMPDIR/bold_seqkit_cleaned.fasta",
+        ids="$TMPDIR/bold_non_standard_ids.txt",
+        fastafile="$TMPDIR/bold_filtered.fasta",
     shell:
         """
         exec &> {log} 
@@ -111,55 +131,75 @@ rule remove_non_standard:
         seqkit stats {input[0]} {params.tmpfile} {output[0]}
         """
 
+
 rule filter:
     input:
         "bold_info_filtered.tsv",
-        "bold_filtered.fasta"
+        "bold_filtered.fasta",
+
 
 rule cluster:
     """
     Cluster the filtered fasta file using vsearch
     """
     input:
-        fasta = "bold_filtered.fasta"
+        fasta="bold_filtered.fasta",
     output:
-        fasta = "bold_clustered.fasta"
+        fasta="bold_clustered.fasta",
     log:
-        "logs/bold/cluster.log"
+        "logs/bold/cluster.log",
     threads: 20
     resources:
-        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 10
+        runtime=lambda wildcards, attempt: attempt**2 * 60 * 10,
     params:
-        pid = config["database"]["pid"]
+        pid=config["database"]["pid"],
     shell:
         """
         cluster_bold.py --threads {threads} --pid {params.pid} \
             {input.fasta} {output.fasta} > {log} 2>&1 
         """
 
+
 rule clean:
     """
     Cleans headers of sequences in clustered fasta file
     """
     input:
-        fasta = "bold_clustered.fasta"
+        fasta="bold_clustered.fasta",
     output:
-        fasta = "bold_clustered_cleaned.fasta"
+        fasta="bold_clustered_cleaned.fasta",
     script:
         "scripts/common.py"
 
 
-rule format:
+rule format_dada2:
     """
     Formats the clustered fasta file into DADA2-ready files
     """
     input:
-        fasta = "bold_clustered_cleaned.fasta",
-        info = "bold_info_filtered.tsv"
+        fasta="bold_clustered_cleaned.fasta",
+        info="bold_info_filtered.tsv",
     output:
-        assignTaxaFasta = "bold_clustered.assignTaxonomy.fasta",
-        addSpeciesFasta = "bold_clustered.addSpecies.fasta"
+        assignTaxaFasta="bold_clustered.assignTaxonomy.fasta",
+        addSpeciesFasta="bold_clustered.addSpecies.fasta",
     params:
-        ranks = config["database"]["ranks"]
+        ranks=config["database"]["ranks"],
     script:
         "scripts/common.py"
+
+
+rule format_sintax:
+    input:
+        fasta="bold_clustered_cleaned.fasta",
+        info="bold_info_filtered.tsv",
+    output:
+        fasta="bold_clustered.sintax.fasta",
+    log:
+        "logs/bold/format_sintax.log",
+    params:
+        ranks=config["sintax"]["ranks"],
+        replace=config["sintax"]["replace_ranks"],
+    shell:
+        """
+        format_sintax.py {input.fasta} {input.info} {output.fasta} --ranks {params.ranks} --replace_rank {params.replace} 2>{log}
+        """
