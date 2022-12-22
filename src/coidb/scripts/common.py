@@ -18,6 +18,7 @@ def logg(f):
     :param f:
     :return:
     """
+
     def wrapper(dataf, *args, **kwargs):
         """
         This wrapper outputs stats on running dataframe processing functions
@@ -37,8 +38,11 @@ def logg(f):
         toc = datetime.datetime.now()
         # Get rows after processing
         rows_after = result.shape[0]
-        sys.stderr.write(f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n")
+        sys.stderr.write(
+            f"{toc-tic} seconds to {f.__name__}, {rows_before-rows_after} rows removed, {rows_after} rows remaining\n"
+        )
         return result
+
     return wrapper
 
 
@@ -52,7 +56,9 @@ def api_match_species(bin_id):
     :return: Species name or NaN
     """
     try:
-        with urllib.request.urlopen(f"https://api.gbif.org/v1/species/match?name={bin_id}") as response:
+        with urllib.request.urlopen(
+            f"https://api.gbif.org/v1/species/match?name={bin_id}"
+        ) as response:
             json_text = response.read()
         response_dict = json.loads(json_text)
         return response_dict["species"]
@@ -77,7 +83,9 @@ def add_species(species_bins, bin_tax_df, parent_df):
             continue
         try:
             # Try to get the species name from the parent backbone
-            bin_tax_df.loc[bold_id, "species"] = parent_df.loc[parent_df.taxonID==parent, "canonicalName"].values[0]
+            bin_tax_df.loc[bold_id, "species"] = parent_df.loc[
+                parent_df.taxonID == parent, "canonicalName"
+            ].values[0]
         except IndexError:
             # If that fails for some reason, do one attempt with the API
             bin_tax_df.loc[bold_id, "species"] = api_match_species(bold_id)
@@ -99,20 +107,28 @@ def find_non_unique_lineages(dataf, ranks):
     # Iterate middle ranks
     sys.stderr.write("Looking for non-unique lineages in ranks\n")
     for rank in ranks[1:-1]:
-        tax_strings[rank]= {}
-        for taxa in tqdm(bin_tax_profiles[rank].unique(), total=len(bin_tax_profiles[rank].unique()), desc=f"{rank}: "):
+        tax_strings[rank] = {}
+        for taxa in tqdm(
+            bin_tax_profiles[rank].unique(),
+            total=len(bin_tax_profiles[rank].unique()),
+            desc=f"{rank}: ",
+        ):
             try:
                 tax_strings[rank][taxa]
             except KeyError:
                 tax_strings[rank][taxa] = []
             # Get all rows with taxa
-            rows = bin_tax_profiles.loc[bin_tax_profiles[rank]==taxa]
-            parent_ranks = ranks[0:ranks.index(rank)]
+            rows = bin_tax_profiles.loc[bin_tax_profiles[rank] == taxa]
+            parent_ranks = ranks[0 : ranks.index(rank)]
             for row in rows.iterrows():
-                tax_strings[rank][taxa].append(";".join(row[1][p] for p in parent_ranks))
+                tax_strings[rank][taxa].append(
+                    ";".join(row[1][p] for p in parent_ranks)
+                )
             if len(set(tax_strings[rank][taxa])) > 1:
                 dups.append(f"{rank}:{taxa}")
-    sys.stderr.write(f"Found {len(dups)} rank/taxa combinations with non-unique lineages\n")
+    sys.stderr.write(
+        f"Found {len(dups)} rank/taxa combinations with non-unique lineages\n"
+    )
     return dups
 
 
@@ -129,8 +145,9 @@ def check_uniqueness(df, bin_df, group_ranks, rank, name):
     _bins_to_remove = []
     for row in df.groupby(group_ranks).size().reset_index().iterrows():
         # Check whether parent ranks have '_X' in them
-        unassigned = sum([1 if x else 0 for x in
-                          [regex.match(row[1][rank]) for rank in group_ranks]])
+        unassigned = sum(
+            [1 if x else 0 for x in [regex.match(row[1][rank]) for rank in group_ranks]]
+        )
         # if all parent ranks (up to kingdom) are unassigned, mark this bin for removal
         if unassigned == len(group_ranks) - 1:
             # Mark BINs with lineage to be deleted
@@ -164,8 +181,9 @@ def prefix_taxa(dataf, d, rank, name, group_ranks, parent_rank, child_ranks):
     for key, row_dict in d.items():
         parent = row_dict[parent_rank]
         for child_rank in child_ranks:
-            row_dict[child_rank] = row_dict[child_rank].replace(name,
-                                                                f"{parent}_{name}")
+            row_dict[child_rank] = row_dict[child_rank].replace(
+                name, f"{parent}_{name}"
+            )
         d[key] = row_dict
     dataf = pd.concat([dataf.drop(d.keys()), pd.DataFrame(d).T])
     return dataf
@@ -195,31 +213,42 @@ def clean_up_non_unique_lineages(dataf, dups, ranks):
     # items in dups have the format 'rank:taxname', e.g. 'genus:Peyssonnelia'
     for item in dups:
         rank, name = item.split(":")
-        log[name] = {'rank': rank}
-        group_ranks = ranks[:ranks.index(rank)]
+        log[name] = {"rank": rank}
+        group_ranks = ranks[: ranks.index(rank)]
         parent_rank = ranks[ranks.index(rank) - 1]
-        child_ranks = ranks[ranks.index(rank):]
+        child_ranks = ranks[ranks.index(rank) :]
         _df = dataf.loc[dataf[rank] == name].copy()
         _bins_to_remove = check_uniqueness(_df, dataf, group_ranks, rank, name)
         # Test if lineages are unique after removing BINs
-        if _df.loc[~_df.bold_id.isin(_bins_to_remove)].groupby(
-                group_ranks).size().reset_index().shape[0] == 1:
+        if (
+            _df.loc[~_df.bold_id.isin(_bins_to_remove)]
+            .groupby(group_ranks)
+            .size()
+            .reset_index()
+            .shape[0]
+            == 1
+        ):
             # if removing these BINs was enough to generate a single lineage
             # add bins to list to remove
             bins_to_remove += _bins_to_remove
-            log[name]['decision'] = 'removing BINs with unassigned parent ranks'
-            log[name]['bins_removed'] = ','.join(_bins_to_remove)
+            log[name]["decision"] = "removing BINs with unassigned parent ranks"
+            log[name]["bins_removed"] = ",".join(_bins_to_remove)
         else:
             # if not, prefix the name with the parent rank
             d = _df.to_dict(orient="index")
-            dataf = prefix_taxa(dataf, d, rank, name, group_ranks, parent_rank,
-                                child_ranks)
-            log[name]['decision'] = 'prefixing with parent rank name'
-            log[name]['bins_removed'] = ''
+            dataf = prefix_taxa(
+                dataf, d, rank, name, group_ranks, parent_rank, child_ranks
+            )
+            log[name]["decision"] = "prefixing with parent rank name"
+            log[name]["bins_removed"] = ""
     return dataf.loc[~dataf["bold_id"].isin(bins_to_remove)], log
 
 
-def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"]):
+def fill_unassigned(
+    df,
+    bins,
+    ranks=["kingdom", "phylum", "class", "order", "family", "genus", "species"],
+):
     """
     This function fills in 'the blanks' for each row in a dataframe
     For example:
@@ -240,9 +269,9 @@ def fill_unassigned(df, bins, ranks=["kingdom", "phylum", "class", "order", "fam
     others = df.drop(bins).loc[:, ranks]
     # Extract bins to check for iteration
     df = df.loc[bins, ranks]
-    for bold_bin in tqdm(bins, unit=" BINs",
-                         total=len(bins),
-                         desc="filling unassigned ranks"):
+    for bold_bin in tqdm(
+        bins, unit=" BINs", total=len(bins), desc="filling unassigned ranks"
+    ):
         unknowns = 0
         row = df.loc[bold_bin].to_dict()
         for rank in ranks:
@@ -284,7 +313,7 @@ def extract_bold_bins(dataf):
     :param dataf: Input dataframe
     :return: Filtered dataframe
     """
-    return dataf.loc[dataf.bold_id==dataf.bold_id]
+    return dataf.loc[dataf.bold_id == dataf.bold_id]
 
 
 @logg
@@ -309,9 +338,12 @@ def filter_dataframe(dataf, filter_vals=[], filter_col=None):
     :return: Filtered dataframe
     """
     if len(filter_vals) > 0:
-        sys.stderr.write(f"Filtering dataframe to {len(filter_vals)} items in {filter_col}\n")
+        sys.stderr.write(
+            f"Filtering dataframe to {len(filter_vals)} items in {filter_col}\n"
+        )
         return dataf.loc[dataf[filter_col].isin(filter_vals)]
     return dataf
+
 
 def write_seqs(seq_df, outfile, tmpfile, ranks):
     """
@@ -330,13 +362,15 @@ def write_seqs(seq_df, outfile, tmpfile, ranks):
     seq_df = seq_df.sort_values("bold_id")
     tmpfile = os.path.expandvars(tmpfile)
     outfile = os.path.abspath(outfile)
-    with open(tmpfile, 'w') as fhout:
-        for r in tqdm(seq_df.iterrows(),
-                              desc=f"Writing sequences to temporary directory",
-                              unit=" seqs"):
+    with open(tmpfile, "w") as fhout:
+        for r in tqdm(
+            seq_df.iterrows(),
+            desc=f"Writing sequences to temporary directory",
+            unit=" seqs",
+        ):
             record_id, row = r
             seq = row["seq"]
-            desc = ";".join([row[x] for x in ranks+["bold_id"]])
+            desc = ";".join([row[x] for x in ranks + ["bold_id"]])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
     sys.stderr.write(f"Moving {tmpfile} to {outfile}\n")
     shutil.move(tmpfile, outfile)
@@ -360,49 +394,62 @@ def filter(sm):
     ### Read and process occurrences ###
     ####################################
     sys.stderr.write(f"Reading {sm.input[0]}\n")
-    occurrences = pd.read_csv(sm.input[0], sep="\t", usecols=[0, 4],
-                     names=["record_id", "bold_id"],
-                     dtype={'bold_id': str}, nrows=nrows)
+    occurrences = pd.read_csv(
+        sm.input[0],
+        sep="\t",
+        usecols=[0, 4],
+        names=["record_id", "bold_id"],
+        dtype={"bold_id": str},
+        nrows=nrows,
+    )
     sys.stderr.write(f"{occurrences.shape[0]} records read\n")
-    occurrences = (occurrences
-        .pipe(start)
-        .pipe(extract_bold_bins)
-        .pipe(fillna))
+    occurrences = occurrences.pipe(start).pipe(extract_bold_bins).pipe(fillna)
     ##################################
     ### Read and process sequences ###
     ##################################
     sys.stderr.write(f"Reading {sm.input[1]}\n")
-    seqs = pd.read_csv(sm.input[1], header=None, sep="\t", index_col=0,
-                       names=["record_id", "gene", "seq"], usecols=[0,1,2],
-                       nrows=nrows)
+    seqs = pd.read_csv(
+        sm.input[1],
+        header=None,
+        sep="\t",
+        index_col=0,
+        names=["record_id", "gene", "seq"],
+        usecols=[0, 1, 2],
+        nrows=nrows,
+    )
     sys.stderr.write(f"{seqs.shape[0]} records read\n")
-    seqs = (seqs
-            .pipe(start)
-            .pipe(filter_dataframe, genes, "gene"))
+    seqs = seqs.pipe(start).pipe(filter_dataframe, genes, "gene")
     ##########################################
     ### Read and process backbone taxonomy ###
     ##########################################
     sys.stderr.write(f"Reading {sm.input[2]}\n")
-    backbone = pd.read_csv(sm.input[2], header=0, sep="\t", nrows=nrows,
-                           usecols=[0, 2, 5, 7, 11, 17, 18, 19, 20, 21, 22])
+    backbone = pd.read_csv(
+        sm.input[2],
+        header=0,
+        sep="\t",
+        nrows=nrows,
+        usecols=[0, 2, 5, 7, 11, 17, 18, 19, 20, 21, 22],
+    )
     sys.stderr.write(f"{backbone.shape[0]} lines read\n")
-    backbone = (backbone
-            .pipe(start)
-            .pipe(filter_dataframe, taxa, filter_rank))
+    backbone = backbone.pipe(start).pipe(filter_dataframe, taxa, filter_rank)
     #######################################
     ### Merge occurrences and sequences ###
     #######################################
     sys.stderr.write(
-        f"Merging occurrences ({occurrences.shape[0]}) and sequence ({seqs.shape[0]}) records\n")
-    seq_df = pd.merge(occurrences, seqs, left_on="record_id", right_index=True,
-                      how="inner")
+        f"Merging occurrences ({occurrences.shape[0]}) and sequence ({seqs.shape[0]}) records\n"
+    )
+    seq_df = pd.merge(
+        occurrences, seqs, left_on="record_id", right_index=True, how="inner"
+    )
     sys.stderr.write(f"{seq_df.shape[0]} records remaining\n")
     ################################
     ### Remove duplicate records ###
     ################################
     sys.stderr.write(f"Removing duplicate records\n")
     seq_df_nr = seq_df.groupby("record_id").first().reset_index()
-    sys.stderr.write(f"{seq_df.shape[0] - seq_df_nr.shape[0]} rows removed, {seq_df_nr.shape[0]} rows remaining\n")
+    sys.stderr.write(
+        f"{seq_df.shape[0] - seq_df_nr.shape[0]} rows removed, {seq_df_nr.shape[0]} rows remaining\n"
+    )
     ##################################
     ### Assign taxonomy to records ###
     ##################################
@@ -412,25 +459,34 @@ def filter(sm):
     bin_tax_df = bin_tax_df.loc[bin_tax_df.index.str.startswith("BOLD:")]
     # Assign default species column
     bin_tax_df = bin_tax_df.assign(
-        species=pd.Series([np.nan] * bin_tax_df.shape[0],
-                          index=bin_tax_df.index))
+        species=pd.Series([np.nan] * bin_tax_df.shape[0], index=bin_tax_df.index)
+    )
     # Extract BOLD ids assigned down to genus level, putative species bins
-    species_bins = list(
-        bin_tax_df.loc[bin_tax_df.genus == bin_tax_df.genus].index)
+    species_bins = list(bin_tax_df.loc[bin_tax_df.genus == bin_tax_df.genus].index)
     sys.stderr.write(f"{len(species_bins)} BINs assigned to genus level\n")
     # Extract ids of parents
     parent_ids = bin_tax_df.loc[species_bins, "parentNameUsageID"].values
     # Extract parent dataframe from parent ids
-    parent_df = backbone.loc[(backbone.taxonID.isin(parent_ids))&(backbone.taxonRank=="species")]
+    parent_df = backbone.loc[
+        (backbone.taxonID.isin(parent_ids)) & (backbone.taxonRank == "species")
+    ]
     sys.stderr.write("Adding species names\n")
     # Attempt to add species to species_bins using parent dataframe
     bin_tax_df = add_species(species_bins, bin_tax_df, parent_df)
     bin_tax_df = bin_tax_df.loc[:, ranks]
-    bins_with_species_names = bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species].shape[0]
-    unique_species_names = len(bin_tax_df.loc[bin_tax_df.species==bin_tax_df.species, "species"].unique())
-    sys.stderr.write(f"Added {unique_species_names} unique species names to {bins_with_species_names} BINS\n")
+    bins_with_species_names = bin_tax_df.loc[
+        bin_tax_df.species == bin_tax_df.species
+    ].shape[0]
+    unique_species_names = len(
+        bin_tax_df.loc[bin_tax_df.species == bin_tax_df.species, "species"].unique()
+    )
+    sys.stderr.write(
+        f"Added {unique_species_names} unique species names to {bins_with_species_names} BINS\n"
+    )
     # Fill unassigned ranks
-    bins_to_fill = list(bin_tax_df.loc[bin_tax_df.loc[:, ranks].isna().sum(axis=1)>0].index)
+    bins_to_fill = list(
+        bin_tax_df.loc[bin_tax_df.loc[:, ranks].isna().sum(axis=1) > 0].index
+    )
     sys.stderr.write(f"Filling unassigned ranks for {len(bins_to_fill)} BINs\n")
     bin_tax_df = fill_unassigned(bin_tax_df, bins_to_fill, ranks)
     ###############################################
@@ -438,7 +494,9 @@ def filter(sm):
     ###############################################
     bin_tax_df.index.name = "bold_id"
     dups = find_non_unique_lineages(bin_tax_df, ranks)
-    bin_tax_df_cleaned, loglist = clean_up_non_unique_lineages(bin_tax_df.reset_index(), dups, ranks)
+    bin_tax_df_cleaned, loglist = clean_up_non_unique_lineages(
+        bin_tax_df.reset_index(), dups, ranks
+    )
     bin_tax_df_cleaned.set_index("bold_id", inplace=True)
     # Write loglist to file, showing what, if anything, has been done to the taxa
     logdf = pd.DataFrame(loglist).T
@@ -450,7 +508,13 @@ def filter(sm):
     ### Merge BIN taxonomy with record dataframe ###
     ################################################
     sys.stderr.write(f"Merging BIN taxonomy with records\n")
-    df = pd.merge(seq_df_nr, bin_tax_df_cleaned.loc[:, ranks], left_on="bold_id", how="inner", right_index=True)
+    df = pd.merge(
+        seq_df_nr,
+        bin_tax_df_cleaned.loc[:, ranks],
+        left_on="bold_id",
+        how="inner",
+        right_index=True,
+    )
     df.set_index("record_id", inplace=True)
     sys.stderr.write(f"{df.shape[0]} records remaining\n")
     #####################
@@ -471,7 +535,8 @@ def clean_fasta(sm):
     """
     from Bio import SeqIO
     import re
-    with open(sm.input.fasta, 'r') as fhin, open(sm.output.fasta, 'w') as fhout:
+
+    with open(sm.input.fasta, "r") as fhin, open(sm.output.fasta, "w") as fhout:
         for record in SeqIO.parse(fhin, "fasta"):
             desc = (record.description).lstrip("centroid=")
             desc = re.split(";seqs=\d+", desc)[0]
@@ -503,11 +568,14 @@ def format_fasta(sm):
     :return:
     """
     ranks = sm.params.ranks
-    #if "species" in ranks:
+    # if "species" in ranks:
     #    ranks.remove("species")
     from Bio import SeqIO
+
     info = pd.read_csv(sm.input.info, sep="\t", index_col=0, header=0)
-    with open(sm.output.assignTaxaFasta, 'w') as fh1, open(sm.output.addSpeciesFasta, 'w') as fh2:
+    with open(sm.output.assignTaxaFasta, "w") as fh1, open(
+        sm.output.addSpeciesFasta, "w"
+    ) as fh2:
         for record in SeqIO.parse(sm.input.fasta, "fasta"):
             names = []
             id = record.id
@@ -519,7 +587,7 @@ def format_fasta(sm):
                     names.append(n)
                 else:
                     break
-            id_tax = ";".join(names)+";"
+            id_tax = ";".join(names) + ";"
             fh1.write(f">{id_tax}\n{record.seq}\n")
             species = rec_info["species"]
             bold_id = rec_info["bold_id"]
@@ -528,11 +596,13 @@ def format_fasta(sm):
 
 
 def main(sm):
-    toolbox = {'filter_data': filter,
-               'format_dada2': format_fasta,
-               'clean': clean_fasta}
+    toolbox = {
+        "filter_data": filter,
+        "format_dada2": format_fasta,
+        "clean": clean_fasta,
+    }
     toolbox[sm.rule](sm)
 
 
-if __name__ == '__main__':
-    main(snakemake) # noqa: F821
+if __name__ == "__main__":
+    main(snakemake)  # noqa: F821

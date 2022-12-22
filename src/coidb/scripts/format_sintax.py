@@ -22,7 +22,9 @@ def main(args):
         set(info.columns).intersection(args.ranks)
     ), "not all ranks found in info file"
     with open(args.outfile, "w") as fhout:
-        for record in tqdm(parse(args.fasta, "fasta"), unit=" records", desc="formatting records"):
+        for record in tqdm(
+            parse(args.fasta, "fasta"), unit=" records", desc="formatting records"
+        ):
             taxlabels = [info.loc[record.id][x] for x in args.ranks]
             taxprefix = [x[0] for x in args.ranks]
             desc = ",".join(
