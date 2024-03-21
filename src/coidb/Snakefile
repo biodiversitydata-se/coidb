@@ -78,8 +78,7 @@ rule extract_zipfile:
     shell:
         """
         f=$(unzip -l {input[0]} | grep -w {output[0]} | rev | cut -f1 -d ' ' | rev)
-        unzip -o -d $TMPDIR/ {input[0]} $f >> {log} 2>&1
-        mv $TMPDIR/$f {output[0]}
+        unzip -j -o -d . {input[0]} $f >> {log} 2>&1
         """
 
 
@@ -212,7 +211,7 @@ rule format_sintax:
 
 ## subseq pipeline
 
-splits=[f'{x:03d}' for x in list(range(1,10001))]
+splits=[f'{x:03d}' for x in list(range(1,1001))]
 
 rule subseq:
     input:
@@ -227,7 +226,7 @@ rule translate_db:
         faa = "subseq/bold_clustered.faa",
         coord = "subseq/bold_clustered.coord"
     input:
-        rules.format_sintax.output.fasta
+        fasta=rules.format_sintax.output.fasta
     log:
         "logs/translate_db.log"
     shell:
@@ -286,15 +285,15 @@ rule extract_hmm_subseq:
     output:
         "subseq/_subseq/{split}.fasta"
     input:
-        hmmout=rules.hmmsearch.output[0]
+        hmmout=rules.hmmsearch.output[0],
         dnafile=rules.format_sintax.output.fasta,
         coord=rules.translate_db.output.coord
     log:
         "logs/extract_hmm_subseq/{split}.log"
     params:
-        min_len=lambda wildcards: config["subseq_min_len"],
-        hmm_from=lambda wildcards: config["hmm_from"],
-        hmm_to=lambda wildcards: config["hmm_to"],
+        min_len=lambda wildcards: config["subseq"]["subseq_min_len"],
+        hmm_from=lambda wildcards: config["subseq"]["hmm_from"],
+        hmm_to=lambda wildcards: config["subseq"]["hmm_to"],
     shell:
         """
         extract_hmm_subseq.py -m {params.min_len} --hmm_from {params.hmm_from} \
@@ -303,7 +302,7 @@ rule extract_hmm_subseq:
 
 def get_asv_seq(wildcards):
     if "asv_seq" in config.keys():
-        return ">ASV\n" + config["asv_seq"] + "\n"
+        return ">ASV\n" + config["subseq"]["asv_seq"] + "\n"
     else:
         return ""
 
@@ -319,8 +318,8 @@ rule align_subseqs:
         runtime = 30,
     params:
         asv_seq = lambda wildcards: get_asv_seq(wildcards),
-        tmpdir = "$TMPDIR/clustalo.{db}",
-        out = "$TMPDIR/clustalo.{db}/subseqs.aln"
+        tmpdir = "$TMPDIR/clustalo",
+        out = "$TMPDIR/clustalo/subseqs.aln"
     shell:
         """
         mkdir -p {params.tmpdir}
