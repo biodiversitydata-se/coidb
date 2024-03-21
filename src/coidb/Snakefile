@@ -213,11 +213,6 @@ rule format_sintax:
 
 splits=[f'{x:03d}' for x in list(range(1,1001))]
 
-rule subseq:
-    input:
-        expand("subseq/_trimmed/{split}.fasta", split=splits),
-
-
 rule translate_db:
     """
     Translate each reference sequence in all six reading frames and choose the longest
