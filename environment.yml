@@ -13,3 +13,5 @@ dependencies:
   - seqkit
   - importlib_resources
   - unzip
+  - hmmer
+  - clustalo
