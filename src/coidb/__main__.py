@@ -31,6 +31,7 @@ def run(args):
             unlock=args.unlock,
             forcerun=forcerun,
             rerun_triggers="mtime",
+            touch=args.touch,
         )
         return success
     if not success:
@@ -72,6 +73,9 @@ def main():
     )
     parser.add_argument(
         "-p", "--printshellcmds", action="store_true", help="Print shell commands"
+    )
+    parser.add_argument(
+        "-t", "--touch", action="store_true", help="Touch output files (mark them up to date without really changing them) instead of running their commands."
     )
     args = parser.parse_args()
     run(args)
