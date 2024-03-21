@@ -21,12 +21,11 @@ localrules:
     clean,
     format_sintax,
     format_dada2,
-    gather_subseqs,
+    subseq,
     translate_db,
     download_hmm,
     extract_hmm_subseq,
     trim_subseq_aln,
-    gather_subseqs
 
 
 wildcard_constraints:
