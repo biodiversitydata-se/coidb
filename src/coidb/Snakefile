@@ -347,7 +347,7 @@ rule trim_subseq_aln:
         trimaln.py -m {params.min_len} {input} > {output} 2>{log}
         """
 
-rule gather_subseqs:
+rule subseq:
     output:
         "bold_clustered.subseqs.fasta"
     input:
