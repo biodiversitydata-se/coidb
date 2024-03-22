@@ -295,7 +295,7 @@ rule extract_hmm_subseq:
         """
 
 def get_asv_seq(wildcards):
-    if "asv_seq" in config.keys():
+    if "asv_seq" in config["subseq"].keys():
         return ">ASV\n" + config["subseq"]["asv_seq"] + "\n"
     else:
         return ""
