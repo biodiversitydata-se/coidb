@@ -8,6 +8,7 @@ Trims an alignment to match an ASV sequence. This ASV sequence is assumed to hav
 from argparse import ArgumentParser
 from Bio.SeqIO import parse
 import sys
+import pandas as pd
 
 def read_seqs(f):
     records = {}
@@ -31,12 +32,37 @@ def get_end(seq):
             return -i
     return end
 
+def get_start_end(records):
+    pos_count = {}
+    for record in records.values():
+        seq = str(record.seq)
+        for i, x in enumerate(seq):
+            if x != "-":
+                if i not in pos_count:
+                    pos_count[i] = 0
+                pos_count[i] += 1
+    df = pd.DataFrame(pos_count, index=["n"]).T
+    df = df.sort_index()
+    for row in df.iterrows():
+        if row[1]["n"] == len(records):
+            start = row[0]
+            break
+    df = df.sort_index(ascending=False)
+    for row in df.iterrows():
+        if row[1]["n"] == len(records):
+            end = row[0]
+            break
+    return start, end
+
 
 def main(args):
     records = read_seqs(args.fasta)
-    asv = str(records["ASV"].seq)
-    start = get_start(asv)
-    end = get_end(asv)
+    if "ASV" in records.keys():
+        asv = str(records["ASV"].seq)
+        start = get_start(asv)
+        end = get_end(asv)
+    else:
+        start, end = get_start_end(records)
     sys.stderr.write(f"Found start {start} and end {end}\n")
     del records["ASV"]
     sys.stderr.write(f"Trimming alignments\n")
