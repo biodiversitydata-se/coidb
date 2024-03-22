@@ -338,7 +338,7 @@ rule trim_subseq_aln:
         min_len=300,
     shell:
         """
-        trimaln.py -m {params.min_len} {input} > {output} 2>{log}
+        trim_aln.py -m {params.min_len} {input} > {output} 2>{log}
         """
 
 rule subseq:
