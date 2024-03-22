@@ -320,7 +320,7 @@ rule align_subseqs:
         mkdir -p {params.tmpdir}
         echo -e "{params.asv_seq}" > {params.tmpdir}/input.fasta
         cat {input} >> {params.tmpdir}/input.fasta
-        clustalo --threads {threads} -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v > {log} 2>&1
+        clustalo -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v > {log} 2>&1
         mv {params.out} {output}
         rm -rf {params.tmpdir}
         """
