@@ -308,19 +308,19 @@ rule align_subseqs:
         rules.extract_hmm_subseq.output[0]
     log:
         "logs/align_subseqs/{split}.log"
-    threads: 4
+    threads: 10
     resources:
         runtime = 30,
     params:
         asv_seq = lambda wildcards: get_asv_seq(wildcards),
-        tmpdir = "$TMPDIR/clustalo",
+        tmpdir = "$TMPDIR/clustalo/{split}",
         out = "$TMPDIR/clustalo/subseqs.aln"
     shell:
         """
         mkdir -p {params.tmpdir}
         echo -e "{params.asv_seq}" > {params.tmpdir}/input.fasta
         cat {input} >> {params.tmpdir}/input.fasta
-        clustalo -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v > {log} 2>&1
+        clustalo --threads {threads} -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v > {log} 2>&1
         mv {params.out} {output}
         rm -rf {params.tmpdir}
         """
