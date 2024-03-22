@@ -230,7 +230,7 @@ rule translate_db:
 
 rule split_translations:
     """
-    Split translated aa sequence file tino 10,000 chunks
+    Split translated aa sequence file into chunks
     """
     output:
         expand("subseq/_splits/split{split}.faa", split=splits)
@@ -240,12 +240,13 @@ rule split_translations:
         "logs/split_translations.log"
     params:
         outdir=lambda wildcards, output: os.path.dirname(output[0]),
+        splits=len(splits),
     resources:
         runtime = 120,
     threads: 4
     shell:
         """
-        seqkit split2 -O {params.outdir} -j {threads} -p 10000 --by-part-prefix split -1 {input} >{log} 2>&1
+        seqkit split2 -O {params.outdir} -j {threads} -p {params.splits} --by-part-prefix split -1 {input} >{log} 2>&1
         """
 
 rule download_hmm:
@@ -319,7 +320,7 @@ rule align_subseqs:
         mkdir -p {params.tmpdir}
         echo -e "{params.asv_seq}" > {params.tmpdir}/input.fasta
         cat {input} >> {params.tmpdir}/input.fasta
-        clustalo -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v 2>{log}
+        clustalo -i {params.tmpdir}/input.fasta -o {params.out} --outfmt=a2m -t DNA --threads={threads} -v > {log} 2>&1
         mv {params.out} {output}
         rm -rf {params.tmpdir}
         """
