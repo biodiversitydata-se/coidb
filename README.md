@@ -75,73 +75,6 @@ and for the addSpecies file the headers have the format:
 >GMGMN070-14 Gonepteryx rhamni
 ```
 
-## How it works
-
-Firstly sequence and taxonomic information for records in the BOLD database is 
-downloaded from the [GBIF Hosted Datasets](https://hosted-datasets.gbif.org/ibol/).
-GBIF processes taxonomic information from BOLD in order to resolve ambiguous 
-assignments for BOLD BINs. When there are conflicting assignments at a taxonomic 
-rank an 80% consensus rule is applied to keep _e.g._ a species level assignment
-if four out of five names in the BIN are equal [Kõljalg et al 2020](https://www.mdpi.com/2076-2607/8/12/1910/htm).
-This data is then filtered to only keep records annotated as 'COI-5P' and assigned
-to a BIN ID and duplicate entries are removed. 
-
-#### Taxonomy
-The taxonomic information obtained from GBIF is then parsed in order to extract
-species names to BOLD BINs. This is done by:
-1. find all BOLD BINs with a taxonomic assignment at genus level, these likely have
-species names assigned from GBIF (see methods for species assignment [here](https://www.mdpi.com/2076-2607/8/12/1910/htm))
-2. obtain all parent taxonomic ids for BOLD BINs from step 1 and use these to 
-look up the species name for the BOLD BINs. 
-3. For BOLD BINs where species name look-up failed in step 2, try to obtain 
-species name using the [GBIF API](https://www.gbif.org/developer/summary).
-
-The taxonomic data is then searched for rows where missing values for ranks are 
-filled with the last known higher level rank, suffixed with `_X`. For instance,
-
-| BOLD BIN     | kingdom   | phylum          | class | order       | family | genus | species |
-|--------------|-----------|-----------------|-------|-------------|--------|-------|---------|
-| BOLD:ACX1129 | Animalia  | Platyhelminthes | NaN   | Polycladida | NaN    | NaN   | NaN     |
-| BOLD:ACX6548 | Chromista | Ochrophyta      | NaN   | NaN         | NaN    | NaN   | NaN     |
-
-becomes:
-
-| BOLD BIN     | kingdom   | phylum          | class             | order         | family         | genus           | species          |
-|--------------|-----------|-----------------|-------------------|---------------|----------------|-----------------|------------------|
-| BOLD:ACX1129 | Animalia  | Platyhelminthes | Platyhelminthes_X | Polycladida   | Polycladida_X  | Polycladida_XX  | Polycladida_XXX  |
-| BOLD:ACX6548 | Chromista | Ochrophyta      | Ochrophyta_X      | Ochrophyta_XX | Ochrophyta_XXX | Ochrophyta_XXXX | Ochrophyta_XXXXX |
-
-As you can see, an `X` is appended for each downstream rank with a missing assignment.
-
-BOLD BINs are then screened for cases where there are more than 1 unique parent 
-lineage for the same taxonomic assignment. For example, the following taxonomic 
-information may be found for BOLD BINs with assignment 'Aphaenogaster' at the
-genus level.
-
-| kingdom  | phylym     | class       | order         | family        | genus         |
-|----------|------------|-------------|---------------|---------------|---------------|
-| Animalia | Animalia_X | Animalia_XX | Animalia_XXX  | Animalia_XXXX | Aphaenogaster |
-| Animalia | Arthropoda | Insecta     | Hymenoptera   | Formicidae    | Aphaenogaster |               
-
-A check is first made to see if unique parent lineages can be obtained by 
-removing BINs that only have missing assignments for parent ranks up to and including 
-phylum. If that doesn't result in a unique parent lineage, the conflicting rank
-assignments are prefixed with the lowest assigned parent rank. 
-
-For example, BOLD BINs with genus level assignment 'Paralagenidium' have both 
-`k_Chromista;p_Oomycota;c_Peronosporea;o_Peronosporales;f_Pythiaceae` and 
-`k_Chromista;p_Ochrophyta;c_Ochrophyta_X;o_Ochrophyta_XX;f_Ochrophyta_XXX` as parent
-lineages. Since these conflicts cannot be resolved by removing BINs (all BINs have
-assignments at phylum level), the taxa labels at genus and species level are prefixed
-with either `Pythiaceae_` or `Ochrophyta_XXX_`.
-
-#### Sequence processing
-Sequences are then processed to remove gap characters and leading and trailing 
-`N`s. After this, any sequences with remaining non-standard characters are removed.
-Sequences are then clustered at 100% identity using [vsearch](https://github.com/torognes/vsearch) 
-(Rognes _et al._ 2016). This clustering is done separately for sequences assigned 
-to each BIN ID.   
-
 ## Configuration
 There are a few configurable parameters that modifies how sequences are filtered
 and clustered. You can modify these parameters using a config file in `yaml` 
@@ -233,6 +166,73 @@ options:
   -p, --printshellcmds  Print shell commands
   -t, --touch           Touch output files (mark them up to date without really changing them) instead of running their commands.
 ```
+
+## How it works
+
+Firstly sequence and taxonomic information for records in the BOLD database is 
+downloaded from the [GBIF Hosted Datasets](https://hosted-datasets.gbif.org/ibol/).
+GBIF processes taxonomic information from BOLD in order to resolve ambiguous 
+assignments for BOLD BINs. When there are conflicting assignments at a taxonomic 
+rank an 80% consensus rule is applied to keep _e.g._ a species level assignment
+if four out of five names in the BIN are equal [Kõljalg et al 2020](https://www.mdpi.com/2076-2607/8/12/1910/htm).
+This data is then filtered to only keep records annotated as 'COI-5P' and assigned
+to a BIN ID and duplicate entries are removed. 
+
+#### Taxonomy
+The taxonomic information obtained from GBIF is then parsed in order to extract
+species names to BOLD BINs. This is done by:
+1. find all BOLD BINs with a taxonomic assignment at genus level, these likely have
+species names assigned from GBIF (see methods for species assignment [here](https://www.mdpi.com/2076-2607/8/12/1910/htm))
+2. obtain all parent taxonomic ids for BOLD BINs from step 1 and use these to 
+look up the species name for the BOLD BINs. 
+3. For BOLD BINs where species name look-up failed in step 2, try to obtain 
+species name using the [GBIF API](https://www.gbif.org/developer/summary).
+
+The taxonomic data is then searched for rows where missing values for ranks are 
+filled with the last known higher level rank, suffixed with `_X`. For instance,
+
+| BOLD BIN     | kingdom   | phylum          | class | order       | family | genus | species |
+|--------------|-----------|-----------------|-------|-------------|--------|-------|---------|
+| BOLD:ACX1129 | Animalia  | Platyhelminthes | NaN   | Polycladida | NaN    | NaN   | NaN     |
+| BOLD:ACX6548 | Chromista | Ochrophyta      | NaN   | NaN         | NaN    | NaN   | NaN     |
+
+becomes:
+
+| BOLD BIN     | kingdom   | phylum          | class             | order         | family         | genus           | species          |
+|--------------|-----------|-----------------|-------------------|---------------|----------------|-----------------|------------------|
+| BOLD:ACX1129 | Animalia  | Platyhelminthes | Platyhelminthes_X | Polycladida   | Polycladida_X  | Polycladida_XX  | Polycladida_XXX  |
+| BOLD:ACX6548 | Chromista | Ochrophyta      | Ochrophyta_X      | Ochrophyta_XX | Ochrophyta_XXX | Ochrophyta_XXXX | Ochrophyta_XXXXX |
+
+As you can see, an `X` is appended for each downstream rank with a missing assignment.
+
+BOLD BINs are then screened for cases where there are more than 1 unique parent 
+lineage for the same taxonomic assignment. For example, the following taxonomic 
+information may be found for BOLD BINs with assignment 'Aphaenogaster' at the
+genus level.
+
+| kingdom  | phylym     | class       | order         | family        | genus         |
+|----------|------------|-------------|---------------|---------------|---------------|
+| Animalia | Animalia_X | Animalia_XX | Animalia_XXX  | Animalia_XXXX | Aphaenogaster |
+| Animalia | Arthropoda | Insecta     | Hymenoptera   | Formicidae    | Aphaenogaster |               
+
+A check is first made to see if unique parent lineages can be obtained by 
+removing BINs that only have missing assignments for parent ranks up to and including 
+phylum. If that doesn't result in a unique parent lineage, the conflicting rank
+assignments are prefixed with the lowest assigned parent rank. 
+
+For example, BOLD BINs with genus level assignment 'Paralagenidium' have both 
+`k_Chromista;p_Oomycota;c_Peronosporea;o_Peronosporales;f_Pythiaceae` and 
+`k_Chromista;p_Ochrophyta;c_Ochrophyta_X;o_Ochrophyta_XX;f_Ochrophyta_XXX` as parent
+lineages. Since these conflicts cannot be resolved by removing BINs (all BINs have
+assignments at phylum level), the taxa labels at genus and species level are prefixed
+with either `Pythiaceae_` or `Ochrophyta_XXX_`.
+
+#### Sequence processing
+Sequences are then processed to remove gap characters and leading and trailing 
+`N`s. After this, any sequences with remaining non-standard characters are removed.
+Sequences are then clustered at 100% identity using [vsearch](https://github.com/torognes/vsearch) 
+(Rognes _et al._ 2016). This clustering is done separately for sequences assigned 
+to each BIN ID.   
 
 ### Step-by-step
 
