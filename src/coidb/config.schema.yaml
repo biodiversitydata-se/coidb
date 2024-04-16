@@ -2,8 +2,31 @@ $schema: "http://json-schema.org/draft-06/schema#"
 description: schema for config parameters
 
 type: object
-
 properties:
+  subseq:
+    type: object
+    default:
+      subseq_min_len: 300 # Minimum length of subsequence to be extracted from the reference
+      hmm_from: 78
+      hmm_to: 202
+      asv_seq: "AATAAATAACATAAGATTTTGATTATTACCCCCTTCTTTATCTTTACTATTAATTAGAAGAATAGTTGAAACTGGAACAGGTACCGGATGAACTGTTTACCCACCATTATCTTCTATTATTGCTCATACAGGATCATCAGTAGATTTTTCAATTTTTTCTTTACATATTGCAGGAATTTCATCTATTTTAGGAGCTATTAATTTTATTTCAACTATATTAAATATAAAAATCAAATTTTTAAAATTTGATCAAATTTCATTATTTATTTGATCAATTTTAATTACAACTGTATTATTACTTTTATCATTACCTGTATTAGCAGGAGCAATTACTATACTATTAACAGATCGAAATTTAAATACATCATTTTTTGATCCTATAGGAGGAGGAGATCCAATTCTTTATCAACATTTATTT"
+    properties:
+      subseq_min_len:
+        type: integer
+        description: Minimum length of subsequence to keep
+        default: 300
+      hmm_from:
+        type: integer
+        description: Start position of the gene amplicon region on the HMM
+        default: 78
+      hmm_to:
+        type: integer
+        description: End position of the gene amplicon region on the HMM
+        default: 202
+      asv_seq:
+        type: string
+        description: Example ASV sequence to use in alignment
+        default: "AATAAATAACATAAGATTTTGATTATTACCCCCTTCTTTATCTTTACTATTAATTAGAAGAATAGTTGAAACTGGAACAGGTACCGGATGAACTGTTTACCCACCATTATCTTCTATTATTGCTCATACAGGATCATCAGTAGATTTTTCAATTTTTTCTTTACATATTGCAGGAATTTCATCTATTTTAGGAGCTATTAATTTTATTTCAACTATATTAAATATAAAAATCAAATTTTTAAAATTTGATCAAATTTCATTATTTATTTGATCAATTTTAATTACAACTGTATTATTACTTTTATCATTACCTGTATTAGCAGGAGCAATTACTATACTATTAACAGATCGAAATTTAAATACATCATTTTTTGATCCTATAGGAGGAGGAGATCCAATTCTTTATCAACATTTATTT"
   testing:
     type: object
     default:
@@ -33,9 +56,9 @@ properties:
   database:
     type: object
     default:
-      pid: 0.99
-      bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
-      backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
+      pid: 1.0
+      bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol_2022_01_17.zip"
+      backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/2022-11-23/backbone.zip"
       gene:
         - COI-5P
       taxa: []
@@ -57,11 +80,11 @@ properties:
         min: 0.0
       bold.zip:
         type: string
-        default: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+        default: "https://hosted-datasets.gbif.org/ibol/ibol_2022_01_17.zip"
         description: URL to zipfile with database sequences + info
       backbone.zip:
         type: string
-        default: "https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip"
+        default: "https://hosted-datasets.gbif.org/datasets/backbone/2022-11-23/backbone.zip"
         description: URL to GBIF taxonomy backbone
       gene:
         type: array

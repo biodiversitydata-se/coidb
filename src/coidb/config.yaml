@@ -7,10 +7,10 @@ database:
     # Percent identity to cluster seqs in the database by
     pid: 1.0
     # url to download info and sequence files from
-    bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+    bold.zip: "https://hosted-datasets.gbif.org/ibol/ibol_2024_01_02.zip"
     # url to download zip file with 'taxon.txt' file
-    bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2022_02_08.zip"
-    backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/2022-11-23/backbone.zip"
+    bold_bins.zip: "https://hosted-datasets.gbif.org/ibol/ibol_bins_2024_01_03.zip"
+    backbone.zip: "https://hosted-datasets.gbif.org/datasets/backbone/2023-08-28/backbone.zip"
     # gene of interest (will be used to filter sequences)
     gene:
         - COI-5P
@@ -45,3 +45,8 @@ sintax:
         - "genus=family"
         - "species=genus"
         - "bold_id=species"
+subseq:
+    subseq_min_len: 300 # Minimum length of subsequence to be extracted from the reference
+    hmm_from: 78
+    hmm_to: 202
+    asv_seq: "AATAAATAACATAAGATTTTGATTATTACCCCCTTCTTTATCTTTACTATTAATTAGAAGAATAGTTGAAACTGGAACAGGTACCGGATGAACTGTTTACCCACCATTATCTTCTATTATTGCTCATACAGGATCATCAGTAGATTTTTCAATTTTTTCTTTACATATTGCAGGAATTTCATCTATTTTAGGAGCTATTAATTTTATTTCAACTATATTAAATATAAAAATCAAATTTTTAAAATTTGATCAAATTTCATTATTTATTTGATCAATTTTAATTACAACTGTATTATTACTTTTATCATTACCTGTATTAGCAGGAGCAATTACTATACTATTAACAGATCGAAATTTAAATACATCATTTTTTGATCCTATAGGAGGAGGAGATCCAATTCTTTATCAACATTTATTT"
