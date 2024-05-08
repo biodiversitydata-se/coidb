@@ -397,7 +397,7 @@ def filter(sm):
     occurrences = pd.read_csv(
         sm.input[0],
         sep="\t",
-        usecols=[0, 4],
+        usecols=[0, 37],
         names=["record_id", "bold_id"],
         dtype={"bold_id": str},
         nrows=nrows,

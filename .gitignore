@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+envs/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -129,3 +130,8 @@ dmypy.json
 .pyre/
 
 .snakemake
+
+*.gz
+slurm-*
+bold_*
+*.zip
