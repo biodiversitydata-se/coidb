@@ -1,3 +1,6 @@
 include src/coidb/Snakefile
 include src/coidb/config*.yaml
 include src/coidb/scripts/common.py
+include src/coidb/scripts/translate.py
+include src/coidb/scripts/extract_hmm_subseq.py
+include src/coidb/scripts/trim_aln.py
