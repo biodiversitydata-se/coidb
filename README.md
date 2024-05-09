@@ -1,41 +1,160 @@
-# COI reference sequences from BOLD DB
+# COI DB
 
-## Installation and usage
+## Overview
+This tool downloads sequences + metadata from [GBIF](https://hosted-datasets.gbif.org/)
+and formats sequences of interest for use with downstream metabarcoding analyses.
 
-Please see the [Wiki](https://github.com/biodiversitydata-se/coidb/wiki) for 
-detailed install and usage information.
+## Installation options
 
-## General information
+**Option 1**: Install with conda:
 
-Author: SBDI molecular data team  
-Contact e-mail: john.sundh@scilifelab.se
-DOI: 10.17044/scilifelab.20514192
-License: CC BY 4.0
-Categories: Bioinformatics and computational biology not elsewhere classified, Computational ecology and phylogenetics, Ecology not elsewhere classified
-Item type: Dataset
-Keywords: COI sequence analysis, Ampliseq  
-Funding: Swedish Research Council (VR), grant number 2019-00242. National Bioinformatic Infrastructure Sweden
+```bash
+conda install -c bioconda coidb
+```
 
-This README file was last updated: 2022-08-23
+**Option 2**: Download a release from the '**Releases**' section, unpack it and then create and activate the conda environment. Finally, install the software:
 
-Please cite as: Swedish Biodiversity Data Infrastructure (SBDI; 2022). COI reference sequences from BOLD DB
+```bash
+conda env create -f environment.yml
+conda activate coidb
+python -m pip install .
+```
 
-## Dataset description
+## Quick start
+To see the steps that will be run, without actually running them, do:
 
-This repository contains COI (mitochondrial cytochrome oxidase subunit I) sequences 
-collected from the [BOLD database](https://boldsystems.org/). The fasta file
-bold_clustered_cleaned.fasta.gz has record ids that can be queried in the [Public
-Data Portal](https://boldsystems.org/index.php/Public_BINSearch?searchtype=records)
-and each fasta header contains the taxonomic ranks + the BIN ID assigned to the
-record. The taxonomic information for each record is also given in the tab-separated
-file bold_info_filtered.tsv.gz.
+```bash
+coidb -n
+```
 
-The dataset was last created on February 18, 2022.
+Remove the `-n` flag to actually run the steps. 
 
-### Methods
-The code used to generate this dataset consists of a snakemake workflow wrapped
-into a python package that can be installed with [conda](https://docs.conda.io/en/latest/miniconda.html)
-(`conda install -c bioconda coidb`).
+## Output
+
+The primary outputs of the tool are:
+
+1. bold_clustered_cleaned.fasta: A fasta file with sequences clustered at whatever threshold set in the config file (default is 1.0 which means 100% identity). The header of each sequence in this file has the format
+
+```
+>GMGMN070-14 Animalia;Arthropoda;Insecta;Lepidoptera;Pieridae;Gonepteryx;Gonepteryx rhamni;BOLD:AAA9222
+```
+
+In this example `GMGMN070-14` is the representative id for the sequence and can be viewed in the BOLD database at https://www.boldsystems.org/index.php/Public_RecordView?processid=GMGMN070-14.
+
+2. bold_clustered.sintax.fasta: This fasta file is compatible with the SINTAX classification tool implemented in [vsearch](https://github.com/torognes/vsearch) and has headers with the format:
+
+```
+>GMGMN070-14;tax=d:Animalia,k:Arthropoda,p:Insecta,c:Lepidoptera,o:Pieridae,f:Gonepteryx,g:Gonepteryx rhamni,s:BOLD:AAA9222
+```
+
+> [!NOTE]
+> In the SINTAX formatted headers, the taxonomic ranks are shifted to allow classification down to BOLD_bin. Since SINTAX only allows for ranks prefixed with 'd' (for domain) 'k' (kingdom), 'p' (phylum), 'c' (class), 'o' (order), 'f' (family), 'g' (genus), or 's' (species) we shift the taxonomy so that kingdom becomes domain, etc., and prefix the BOLD bin id with 's'.
+
+3. bold_clustered.assigntaxonomy.fasta and bold_clustered.addSpecies.fasta: These fasta files are compatible with the assignTaxonomy and addSpecies functions implemented in [DADA2](https://github.com/benjjneb/dada2/). For the assignTaxonomy file the headers have the format:
+
+```
+>Animalia;Arthropoda;Insecta;Lepidoptera;Pieridae;Gonepteryx;Gonepteryx rhamni;
+```
+
+and for the addSpecies file the headers have the format:
+
+```
+>GMGMN070-14 Gonepteryx rhamni
+```
+
+## Configuration
+There are a few configurable parameters that modifies how sequences are filtered
+and clustered. You can modify these parameters using a config file in `yaml` 
+format. The default setup looks like this:
+
+```yaml
+database:
+    # url to download info and sequence files from
+    url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+    # gene of interest (will be used to filter sequences)
+    gene:
+        - "COI-5P"
+    # phyla of interest (omit this in order to include all phyla)
+    phyla: []
+    # Percent identity to cluster seqs in the database by
+    pid: 1.0
+```
+
+### Gene types
+By default, only sequences named 'COI-5P' are included in the 
+final output. To modify this behaviour you can supply a config file in `yaml`
+format via `-c <path-to-configfile.yaml>`. For example, to also include 
+'COI-3P' sequences you can create a config file, _e.g._ named `config.yaml` with 
+these contents:
+
+```yaml
+database:
+  gene:
+    - 'COI-5P'
+    - 'COI-3P' 
+```
+
+Then run `coidb` as:
+
+```bash
+coidb -c config.yaml
+```
+
+### Phyla
+
+The default is to include sequences from all taxa. However, you can filter the 
+resulting sequences to only those from one or more phyla. For instance, to only
+include sequences from the phyla 'Arthropoda' and 'Chordata' you supply a 
+config file with these contents:
+
+```yaml
+database:
+  phyla:
+    - 'Arthropoda'
+    - 'Chordata' 
+```
+
+### Clustering
+
+After sequences have been filtered to the genes and phyla of interest they are
+clustered on a per-species (or BOLD `BIN` id where applicable) basis using 
+`vsearch`. By default this clustering is performed at 100% identity. To change
+this behaviour, to _e.g._ 95% identity make sure your config file contains:
+
+```yaml
+database:
+  pid: 0.95
+```
+
+## Command line options
+
+The `coidb` tool is a wrapper for a small snakemake workflow that handles
+all the downloading, filtering and clustering.
+
+```
+usage: coidb [-h] [-n] [-j CORES] [-f] [-u] [-c [CONFIG_FILE ...]] [--cluster-config CLUSTER_CONFIG] [--workdir WORKDIR] [-p] [-t]
+             [targets ...]
+
+positional arguments:
+  targets               File(s) to create or steps to run. If omitted, the full pipeline is run.
+
+options:
+  -h, --help            show this help message and exit
+  -n, --dryrun          Only print what to do, don't do anything [False]
+  -j CORES, --cores CORES
+                        Number of cores to run with [4]
+  -f, --force           Force workflow run
+  -u, --unlock          Unlock working directory
+  -c [CONFIG_FILE ...], --config-file [CONFIG_FILE ...]
+                        Path to configuration file
+  --cluster-config CLUSTER_CONFIG
+                        Path to cluster config (for running on SLURM)
+  --workdir WORKDIR     Working directory. Defaults to current dir
+  -p, --printshellcmds  Print shell commands
+  -t, --touch           Touch output files (mark them up to date without really changing them) instead of running their commands.
+```
+
+## How it works
 
 Firstly sequence and taxonomic information for records in the BOLD database is 
 downloaded from the [GBIF Hosted Datasets](https://hosted-datasets.gbif.org/ibol/).
@@ -102,6 +221,75 @@ Sequences are then clustered at 100% identity using [vsearch](https://github.com
 (Rognes _et al._ 2016). This clustering is done separately for sequences assigned 
 to each BIN ID.   
 
-## References
+### Step-by-step
 
-Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) VSEARCH: a versatile open source tool for metagenomics. PeerJ 4:e2584. doi: 10.7717/peerj.2584
+You can also run the `coidb` tool in steps, _e.g._ if you are only interested
+in some of the files or if you want to inspect the results before proceeding 
+to the next step. This is done using the positional argument `targets`. 
+
+Valid targets are `download`, `filter` and `cluster`. 
+
+#### Step 1: Download
+For example, to only
+download files from GBIF you can run:
+
+```bash
+coidb download
+```
+
+This should produce two files `bold_info.tsv` and `bold_seqs.txt` containing
+metadata and nucleotide sequences, respectively.
+
+#### Step 2: Filter
+
+To also filter the `bold_info.tsv` and `bold_seqs.txt` files (according to the 
+default 'COI-5P' gene or any other genes/phyla you've defined in the optional 
+config file) you can run:
+
+```bash
+coidb filter
+```
+
+This filters sequences in `bold_seqs.txt` and entries in `bold_info.tsv` to 
+potential genes and phyla of interest, respectively. Entries are then merged
+so that only sequences with relevant information are kept. Output files from
+this step are `bold_filtered.fasta` and `bold_info_filtered.tsv`.
+
+
+#### Step 3: Clustering
+
+The final step clusters sequences in `bold_filtered.fasta` on a per-species 
+basis. This means that for each species, the sequences are gathered, 
+clustered with `vsearch` and only the representative sequences are kept. In this 
+step sequences can either have a species name or a BOLD `BIN` ID 
+(_e.g._ `BOLD:AAY5017`) and are treated as being equivalent.
+
+To run the clustering step, do:
+
+```bash
+coidb cluster
+```
+
+The end result is a file `bold_clustered.fasta`.
+
+#### Step 4: Clean headers
+
+The `clean` step removes extra information from sequence headers generated as part of clustering. To run this step, do:
+
+```bash
+coidb clean
+```
+
+#### Step 5: Generate SINTAX/DADA2 formatted fasta
+
+To also get the SINTAX and/or DADA2 formatted fasta file, do:
+
+```bash
+coidb format_sintax
+```
+
+or 
+
+```bash
+coidb format_dada2
+```
