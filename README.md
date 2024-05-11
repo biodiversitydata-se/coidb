@@ -1,8 +1,5 @@
 # COI DB
 
-Download and format database for the COI gene (mitochondrial cytochrome oxidase 
-subunit I).
-
 ## Overview
 This tool downloads sequences + metadata from [GBIF](https://hosted-datasets.gbif.org/)
 and formats sequences of interest for use with downstream metabarcoding analyses.
@@ -20,17 +17,7 @@ conda install -c bioconda coidb
 ```bash
 conda env create -f environment.yml
 conda activate coidb
-python setup.py install
-```
-
-**Option 3**: Clone the git repository and change directory into it, then install:
-
-```bash
-git clone https://github.com/insect-biome-atlas/coidb.git
-cd coidb
-conda env create -f environment.yml
-conda activate coidb
-python setup.py install
+python -m pip install .
 ```
 
 ## Quick start
