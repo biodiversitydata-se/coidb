@@ -1,13 +1,8 @@
 from snakemake.utils import validate
 import os
 
-# this container defines the underlying OS for each job when using the workflow
-# with --use-conda --use-singularity
-singularity: "docker://continuumio/miniconda3:4.9.2"
-
-
 # Validate config
-validate(config, "config.schema.yaml")
+validate(config, "schema/config.schema.yaml")
 
 nrows = None
 if config["testing"]["nrows"] > 0:

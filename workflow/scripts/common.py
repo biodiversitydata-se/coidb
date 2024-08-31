@@ -397,8 +397,9 @@ def filter(sm):
     occurrences = pd.read_csv(
         sm.input[0],
         sep="\t",
-        usecols=[0, 37],
-        names=["record_id", "bold_id"],
+        usecols=[0, 6, 29, 30, 31, 32, 33, 34, 37],
+        header = None,
+        names=["record_id", "species", "kingdom", "phylum", "class", "order", "family", "genus", "bold_id"],
         dtype={"bold_id": str},
         nrows=nrows,
     )
